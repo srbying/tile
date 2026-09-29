@@ -30,6 +30,7 @@ export function PuzzleGame() {
     <div className="page-shell">
       <header className="site-header">
         <a className="wordmark" href="#main"><MosaicMark /><span>TILE-SWAP PUZZLE</span></a>
+        <a className="preview-navigation-link" href="/preview">Compare difficulty art</a>
         <span className="edition">A moment of order</span>
       </header>
 
