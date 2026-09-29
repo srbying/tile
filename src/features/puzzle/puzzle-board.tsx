@@ -25,9 +25,10 @@ interface PuzzleBoardProps {
 
 export function PuzzleBoard({ state, onActivate, onCancel }: PuzzleBoardProps) {
   // Explicit tabIndex keeps buttons in WebKit's Tab order regardless of native defaults.
+  const terminal = state.status !== 'playing';
   return (
     <fieldset
-      className={`tile-grid playable-grid${state.status === 'solved' ? ' is-solved' : ''}`}
+      className={`tile-grid playable-grid${terminal ? ` is-${state.status}` : ''}`}
       aria-label="Your mosaic"
       aria-describedby="game-instruction keyboard-instruction"
     >
@@ -39,8 +40,8 @@ export function PuzzleBoard({ state, onActivate, onCancel }: PuzzleBoardProps) {
           key={position}
           aria-label={`${describePosition(position)}: ${describeTile(tile)}`}
           aria-pressed={state.selectedPosition === position}
-          aria-disabled={state.status === 'solved'}
-          onClick={() => { if (state.status !== 'solved') onActivate(position); }}
+          aria-disabled={terminal}
+          onClick={() => { if (!terminal) onActivate(position); }}
           onKeyDown={(event) => {
             if (event.key === 'Escape') {
               event.preventDefault();
@@ -49,6 +50,7 @@ export function PuzzleBoard({ state, onActivate, onCancel }: PuzzleBoardProps) {
           }}
         >
           <TileArtwork tile={tile} />
+          {terminal && <span className="outcome-mark" aria-hidden="true">{state.status === 'won' ? '✓' : '×'}</span>}
           {state.selectedPosition === position && <span className="selection-mark" aria-hidden="true">✓</span>}
         </button>
       ))}

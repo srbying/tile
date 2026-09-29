@@ -11,7 +11,7 @@ describe('The courtyard sample', () => {
   });
 
   it('starts unsolved and its documented swaps restore the target', () => {
-    const engine = createPuzzleEngine(samplePuzzle, sameAppearance);
+    const engine = createPuzzleEngine(samplePuzzle, { sameAppearance, attemptLimit: 15 });
     let state = engine.initialize();
     expect(state.status).toBe('playing');
     // Independently documented, 1-based row/column solution from README.
@@ -23,7 +23,7 @@ describe('The courtyard sample', () => {
       state = engine.reduce(state, { type: 'activate', position: (r1! - 1) * 6 + c1! - 1 });
       state = engine.reduce(state, { type: 'activate', position: (r2! - 1) * 6 + c2! - 1 });
     }
-    expect(state.status).toBe('solved');
+    expect(state.status).toBe('won');
     expect(state.board).toEqual(samplePuzzle.target);
   });
 

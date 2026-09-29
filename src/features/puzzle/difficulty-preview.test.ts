@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildDifficultyPreviews } from './difficulty-preview';
+import { buildDifficultyPreviews, buildDifficultyPuzzle } from './difficulty-preview';
 import { samplePuzzle, sampleSolution } from './sample-puzzle';
 import { sameAppearance, visualKey } from './tile-appearance';
 import type { TileAppearance } from './puzzle.types';
@@ -19,11 +19,22 @@ describe('difficulty art previews', () => {
 
   it('provides Easy, Medium, and Hard from one shared 6×6 puzzle', () => {
     expect(previews.map(({ id }) => id)).toEqual(['easy', 'medium', 'hard']);
+    expect(previews.map(({ attemptLimit }) => attemptLimit)).toEqual([15, 13, 10]);
 
     for (const preview of previews) {
       expect(preview.target).toHaveLength(36);
       expect(preview.start).toHaveLength(36);
       expect(inventory(preview.target)).toEqual(inventory(preview.start));
+    }
+  });
+
+  it('projects the selected visual tier into a playable puzzle without changing tile positions', () => {
+    for (const preview of previews) {
+      const puzzle = buildDifficultyPuzzle(samplePuzzle, preview.id);
+      expect(puzzle.target).toEqual(preview.target);
+      expect(puzzle.start).toEqual(preview.start);
+      expect(puzzle.id).toBe(samplePuzzle.id);
+      expect(puzzle.title).toBe(samplePuzzle.title);
     }
   });
 

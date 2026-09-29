@@ -57,5 +57,6 @@ test('navigates from the game to preview and back without changing gameplay', as
   await page.getByRole('link', { name: 'Back to the puzzle' }).click();
   await expect(page).toHaveURL('/');
   await expect(page.getByRole('heading', { name: 'Daily Tile-Swap Puzzle.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
   await expect(page.getByRole('group', { name: 'Your mosaic', exact: true }).getByRole('button')).toHaveCount(36);
 });

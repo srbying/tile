@@ -22,7 +22,9 @@ export interface PuzzleDefinition {
 export interface GameState {
   readonly board: readonly TileAppearance[];
   readonly selectedPosition: number | null;
-  readonly status: 'playing' | 'solved';
+  readonly status: 'playing' | 'won' | 'lost';
+  readonly attemptsUsed: number;
+  readonly attemptLimit: number;
 }
 
 export type GameAction =
@@ -30,3 +32,8 @@ export type GameAction =
   | { readonly type: 'cancel' };
 
 export type SameAppearance = (left: TileAppearance, right: TileAppearance) => boolean;
+
+export interface PuzzleEngineOptions {
+  readonly sameAppearance: SameAppearance;
+  readonly attemptLimit: number;
+}

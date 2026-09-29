@@ -5,6 +5,10 @@ const board = (page: Page) => page.getByRole('group', { name: 'Your mosaic', exa
 const cell = (page: Page, row: number, column: number) =>
   board(page).getByRole('button', { name: new RegExp(`^Row ${row}, column ${column}:`) });
 const artworks = (page: Page) => board(page).locator('svg').evaluateAll((elements) => elements.map((element) => element.innerHTML));
+const startGame = async (page: Page, mode?: 'Easy' | 'Medium' | 'Hard') => {
+  if (mode) await page.getByRole('radio', { name: new RegExp(`^${mode}\\b`) }).check();
+  await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
+};
 
 // An independently recorded witness; tests do not call the production solver/reducer.
 const solution = [
@@ -16,9 +20,37 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('opens directly to a readable target and playable 36-cell board', async ({ page }) => {
+test('preselects Medium and offers no unselected mode', async ({ page }) => {
+  await expect(page.getByRole('radio')).toHaveCount(3);
+  await expect(page.getByRole('radio', { name: /^Medium\b/ })).toBeChecked();
+  await expect(page.getByRole('radio', { name: /^Easy\b/ })).not.toBeChecked();
+  await expect(page.getByRole('button', { name: 'Start puzzle', exact: true })).toBeEnabled();
+});
+
+test('keeps mode choices readable and selectable at phone widths', async ({ page }) => {
+  for (const width of [320, 375, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const cards = await page.locator('.mode-option').evaluateAll((elements) => elements.map((element) => {
+      const { width: cardWidth, height } = element.getBoundingClientRect();
+      return { width: cardWidth, height };
+    }));
+    expect(cards).toHaveLength(3);
+    for (const card of cards) {
+      expect(card.width).toBeGreaterThanOrEqual(44);
+      expect(card.height).toBeGreaterThanOrEqual(44);
+    }
+  }
+  await page.getByRole('radio', { name: /^Hard\b/ }).check();
+  await expect(page.getByRole('radio', { name: /^Hard\b/ })).toBeChecked();
+});
+
+test('starts a readable target and playable 36-cell board', async ({ page }) => {
+  await startGame(page);
   await expect(page.getByRole('heading', { name: 'Daily Tile-Swap Puzzle.' })).toBeVisible();
   await expect(page.getByText('Match the target. Tap two tiles to swap them.')).toBeVisible();
+  await expect(page.getByText('Medium mode', { exact: true })).toBeVisible();
+  await expect(page.getByText('13 of 13 swaps remaining', { exact: true })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Target arrangement' }).getByRole('listitem')).toHaveCount(36);
   await expect(board(page).getByRole('button')).toHaveCount(36);
   await expect(cell(page, 1, 1)).toHaveAccessibleName(/Row 1, column 1: teal nested diamonds, bold lines/);
@@ -27,6 +59,7 @@ test('opens directly to a readable target and playable 36-cell board', async ({ 
 });
 
 test('selects, cancels, reselects, and swaps whole artwork with pointer or touch', async ({ page, isMobile }) => {
+  await startGame(page);
   const before = await artworks(page);
   const activate = async (row: number, column: number) => {
     const tile = cell(page, row, column);
@@ -53,6 +86,7 @@ test('selects, cancels, reselects, and swaps whole artwork with pointer or touch
 });
 
 test('keyboard focus is row-major, selection is separate, and Escape cancels', async ({ page }) => {
+  await startGame(page);
   const before = await artworks(page);
   await cell(page, 1, 1).focus();
   await page.keyboard.press('Enter');
@@ -78,6 +112,7 @@ test('keyboard focus is row-major, selection is separate, and Escape cancels', a
 
 for (const input of ['pointer', 'keyboard'] as const) {
   test(`solves using ${input}, announces completion, and locks all swaps`, async ({ page, isMobile }) => {
+    await startGame(page);
     for (const [r1, c1, r2, c2] of solution) {
       for (const [row, column] of [[r1, c1], [r2, c2]] as const) {
         const tile = cell(page, row, column);
@@ -95,7 +130,7 @@ for (const input of ['pointer', 'keyboard'] as const) {
     expect(completed).toEqual(target);
     await expect(board(page).getByRole('button', { pressed: true })).toHaveCount(0);
     await expect(board(page).getByRole('button', { disabled: true })).toHaveCount(36);
-    await expect(board(page)).toHaveClass(/is-solved/);
+    await expect(board(page)).toHaveClass(/is-won/);
     await cell(page, 1, 1).focus();
     await page.keyboard.press('Space');
     await page.keyboard.press('Tab');
@@ -114,6 +149,7 @@ for (const input of ['pointer', 'keyboard'] as const) {
 }
 
 test('fits phone widths with reliable square touch targets and static feedback', async ({ page }) => {
+  await startGame(page);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const width of [320, 375, 1280]) {
     await page.setViewportSize({ width, height: 900 });
@@ -136,16 +172,42 @@ test('fits phone widths with reliable square touch targets and static feedback',
   expect(await cell(page, 1, 1).evaluate((element) => getComputedStyle(element).animationName)).toBe('none');
 });
 
-test('reload restores the sample and the app raises no browser errors', async ({ page }) => {
+test('a loss on the final Hard attempt colors and locks the full board', async ({ page }) => {
+  await startGame(page, 'Hard');
+  await expect(page.getByText('10 of 10 swaps remaining', { exact: true })).toBeVisible();
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    await cell(page, 1, 1).click();
+    await cell(page, 1, 2).click();
+  }
+
+  await expect(page.getByRole('status')).toContainText('No attempts remaining');
+  await expect(page.locator('.round-result').getByText('Hard mode', { exact: true })).toBeVisible();
+  await expect(page.locator('.round-result').getByText('10 of 10 swaps used', { exact: true })).toBeVisible();
+  await expect(board(page)).toHaveClass(/is-lost/);
+  await expect(board(page).getByRole('button', { disabled: true })).toHaveCount(36);
+  await expect(board(page).locator('.outcome-mark')).toHaveCount(36);
+});
+
+test('Hard mode wins on its tenth and final attempt', async ({ page }) => {
+  await startGame(page, 'Hard');
+  for (const [r1, c1, r2, c2] of solution) {
+    await cell(page, r1, c1).click();
+    await cell(page, r2, c2).click();
+  }
+  await expect(page.getByRole('status')).toContainText('Puzzle complete');
+  await expect(page.locator('.round-result').getByText('Hard mode', { exact: true })).toBeVisible();
+  await expect(page.locator('.round-result').getByText('10 of 10 swaps used', { exact: true })).toBeVisible();
+  await expect(board(page)).toHaveClass(/is-won/);
+});
+
+test('reload returns to the mode picker with Medium selected and raises no browser errors', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+  await startGame(page);
   await page.reload();
-  const before = await artworks(page);
-  await cell(page, 1, 1).click();
-  await cell(page, 6, 6).click();
-  await page.reload();
-  expect(await artworks(page)).toEqual(before);
-  await expect(board(page).getByRole('button', { pressed: true })).toHaveCount(0);
+  await expect(page.getByRole('radio', { name: /^Medium\b/ })).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Start puzzle', exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
