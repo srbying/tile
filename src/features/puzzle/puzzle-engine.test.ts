@@ -11,7 +11,9 @@ const decorated: TileAppearance = Object.freeze({
 });
 const target = Object.freeze(Array.from({ length: 36 }, (_, i) => i === 35 ? decorated : plain));
 const start = Object.freeze(Array.from({ length: 36 }, (_, i) => i === 0 ? decorated : plain));
-const puzzle: PuzzleDefinition = Object.freeze({ id: 'test', title: 'Test', size: 6, target, start });
+const puzzle: PuzzleDefinition = Object.freeze({
+  id: 'test', title: 'Test', motifDescription: 'Test motif.', size: 6, target, start,
+});
 
 describe('player transitions', () => {
   const engine = createPuzzleEngine(puzzle, { sameAppearance, attemptLimit: 15 });
@@ -32,6 +34,35 @@ describe('player transitions', () => {
     expect(cleared.board).toEqual(start);
     expect(cleared.attemptsUsed).toBe(0);
     expect(initial.selectedPosition).toBeNull();
+  });
+
+  it('uses one productive hint without changing the board or attempt count', () => {
+    const initial = engine.initialize();
+    const hinted = engine.reduce(initial, { type: 'useHint' });
+
+    expect(hinted.hintUsed).toBe(true);
+    expect(hinted.hintedPositions).toEqual([0, 35]);
+    expect(hinted.board).toBe(initial.board);
+    expect(hinted.attemptsUsed).toBe(0);
+    expect(engine.reduce(hinted, { type: 'useHint' })).toBe(hinted);
+  });
+
+  it('derives hint from board after player moves and clears highlight after next swap', () => {
+    const initial = engine.initialize();
+    const afterWrongSwap = engine.reduce(
+      engine.reduce(initial, { type: 'activate', position: 0 }),
+      { type: 'activate', position: 1 },
+    );
+    const hinted = engine.reduce(afterWrongSwap, { type: 'useHint' });
+
+    expect(hinted.hintedPositions).toEqual([1, 35]);
+    const afterHintedSwap = engine.reduce(
+      engine.reduce(hinted, { type: 'activate', position: 1 }),
+      { type: 'activate', position: 35 },
+    );
+    expect(afterHintedSwap.hintUsed).toBe(true);
+    expect(afterHintedSwap.hintedPositions).toBeNull();
+    expect(afterHintedSwap.attemptsUsed).toBe(2);
   });
 
   it('swaps any two positions, moves every attribute together, and spends one attempt', () => {

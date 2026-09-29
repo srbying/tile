@@ -1,10 +1,18 @@
-import { useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { buildDifficultyPuzzle, difficultyTierConfigs, getDifficultyTierConfig } from './difficulty-preview';
 import type { DifficultyTierId, DifficultyTierConfig } from './difficulty-preview';
 import { createPuzzleEngine } from './puzzle-engine';
 import { PuzzleBoard, TargetBoard, describePosition } from './puzzle-board';
 import { samplePuzzle } from './sample-puzzle';
 import { sameAppearance } from './tile-appearance';
+import {
+  createActiveSolveTimer,
+  formatActiveSolveTime,
+  getActiveSolveMilliseconds,
+  setActiveSolveTimerVisibility,
+  startActiveSolveTimer,
+  stopActiveSolveTimer,
+} from './active-solve-timer';
 
 function MosaicMark() {
   return (
@@ -98,6 +106,8 @@ function PuzzleRound({ tier }: { readonly tier: DifficultyTierConfig }) {
     [puzzle, tier.attemptLimit],
   );
   const [state, dispatch] = useReducer(engine.reduce, undefined, engine.initialize);
+  const timer = useRef(createActiveSolveTimer());
+  const [activeElapsedMilliseconds, setActiveElapsedMilliseconds] = useState<number | null>(null);
   const won = state.status === 'won';
   const lost = state.status === 'lost';
   const terminal = won || lost;
@@ -108,8 +118,43 @@ function PuzzleRound({ tier }: { readonly tier: DifficultyTierConfig }) {
     : lost
       ? 'No attempts remaining. The pattern was not restored.'
       : selected === null
-        ? `${attemptsRemaining} of ${state.attemptLimit} swaps remaining. Choose any tile to begin a swap.`
-        : `${describePosition(selected)} selected. Choose another tile to swap, or clear your selection.`;
+      ? `${attemptsRemaining} of ${state.attemptLimit} swaps remaining. Choose any tile to begin a swap.`
+      : `${describePosition(selected)} selected. Choose another tile to swap, or clear your selection.`;
+  const hintMessage = state.hintedPositions === null
+    ? null
+    : `Hint: Swap ${describePosition(state.hintedPositions[0])} with ${describePosition(state.hintedPositions[1])} to move closer to the target.`;
+
+  useEffect(() => {
+    const updateVisibility = () => {
+      timer.current = setActiveSolveTimerVisibility(
+        timer.current,
+        document.visibilityState === 'visible',
+        performance.now(),
+      );
+    };
+    document.addEventListener('visibilitychange', updateVisibility);
+    return () => document.removeEventListener('visibilitychange', updateVisibility);
+  }, []);
+
+  const activatePosition = (position: number) => {
+    const action = { type: 'activate', position } as const;
+    const commitsSwap = state.status === 'playing'
+      && state.selectedPosition !== null
+      && state.selectedPosition !== position;
+
+    if (commitsSwap) {
+      const now = performance.now();
+      timer.current = startActiveSolveTimer(timer.current, now, document.visibilityState === 'visible');
+      const nextState = engine.reduce(state, action);
+      if (nextState.status !== 'playing') {
+        const stopped = stopActiveSolveTimer(timer.current, now);
+        timer.current = stopped;
+        setActiveElapsedMilliseconds(getActiveSolveMilliseconds(stopped, now));
+      }
+    }
+
+    dispatch(action);
+  };
 
   return (
     <div className="page-shell">
@@ -141,21 +186,28 @@ function PuzzleRound({ tier }: { readonly tier: DifficultyTierConfig }) {
             </div>
             <PuzzleBoard
               state={state}
-              onActivate={(position) => dispatch({ type: 'activate', position })}
+              onActivate={activatePosition}
               onCancel={() => dispatch({ type: 'cancel' })}
             />
             <p className="attempt-count">{attemptsRemaining} of {state.attemptLimit} swaps remaining</p>
             {terminal && (
-              <p className={`round-result${won ? ' won-result' : ' lost-result'}`}>
+              <div className={`round-result${won ? ' won-result' : ' lost-result'}`} aria-label="Round result">
                 <strong>{tier.label} mode</strong>
                 <span>{state.attemptsUsed} of {state.attemptLimit} swaps used</span>
-              </p>
+                <span>Active time: {formatActiveSolveTime(activeElapsedMilliseconds ?? 0)}</span>
+                <span>{state.hintUsed ? 'Assisted (hint used)' : 'Unassisted'}</span>
+                <span className="result-motif">Motif: {puzzle.motifDescription}</span>
+              </div>
             )}
             <div className={`game-feedback${won ? ' complete-feedback' : ''}${lost ? ' failed-feedback' : ''}`}>
               <output aria-live="polite" aria-atomic="true">
                 <span className="feedback-icon" aria-hidden="true">{won ? '✓' : lost ? '×' : '↔'}</span>{message}
               </output>
-              <button className="clear-selection" type="button" tabIndex={0} disabled={selected === null || terminal} onClick={() => dispatch({ type: 'cancel' })}>Clear selection</button>
+              <p className="hint-instruction" id="hint-instruction" aria-live="polite">{hintMessage ?? ''}</p>
+              <div className="game-actions">
+                <button className="clear-selection" type="button" tabIndex={0} disabled={selected === null || terminal} onClick={() => dispatch({ type: 'cancel' })}>Clear selection</button>
+                <button className="hint-button" type="button" disabled={state.hintUsed || terminal} onClick={() => dispatch({ type: 'useHint' })}>Use hint</button>
+              </div>
             </div>
           </section>
         </div>

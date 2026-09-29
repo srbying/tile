@@ -45,7 +45,9 @@ h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(32px, 4.5v
 .tile-button { appearance: none; display: block; width: 100%; min-height: 0; cursor: pointer; touch-action: manipulation; }
 @media (hover: hover) { .tile-button:not([aria-disabled='true']):hover { box-shadow: 0 0 0 2px var(--teal); z-index: 1; } }
 .tile-button.is-selected { outline: 3px solid var(--teal); outline-offset: -2px; z-index: 2; }
+.tile-button.is-hinted { outline: 3px dashed var(--terracotta); outline-offset: -5px; z-index: 2; }
 .tile-button:focus-visible { outline: 3px dashed #102f29; outline-offset: 2px; z-index: 3; }
+.hint-mark { position: absolute; left: 2px; top: 2px; z-index: 4; width: 17px; height: 17px; border-radius: 50%; display: grid; place-items: center; color: white; background: #87351f; border: 1px solid #fff9eb; font-size: 10px; font-weight: 700; line-height: 1; pointer-events: none; }
 .selection-mark { position: absolute; right: -3px; top: -3px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; line-height: 1; background: #183f37; color: white; border: 1px solid #fff9eb; }
 .playable-grid.is-won { background: #c8ddc8; border-color: #23664e; box-shadow: 0 0 0 2px #23664e, 0 5px 0 #e0e5d5; }
 .playable-grid.is-lost { background: #e8c5b8; border-color: #9f382b; box-shadow: 0 0 0 2px #9f382b, 0 5px 0 #ead9d0; }
@@ -63,8 +65,13 @@ h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(32px, 4.5v
 .game-feedback { padding-top: 18px; min-height: 113px; }
 .game-feedback output { display: flex; align-items: baseline; gap: 9px; color: var(--muted); font-size: 12px; line-height: 1.6; min-height: 38px; margin: 0; }
 .feedback-icon { font-size: 18px; color: var(--teal); }
-.clear-selection { padding: 5px 10px; margin-left: 21px; min-height: 44px; color: var(--teal); font-size: 11px; text-decoration: underline; text-underline-offset: 3px; background: none; border: 0; cursor: pointer; }
+.game-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.clear-selection { padding: 5px 10px; min-height: 44px; color: var(--teal); font-size: 11px; text-decoration: underline; text-underline-offset: 3px; background: none; border: 0; cursor: pointer; }
 .clear-selection:disabled { color: #77796e; text-decoration: none; cursor: default; }
+.hint-button { min-height: 44px; padding: 5px 13px; border: 1px solid var(--terracotta); border-radius: 3px; background: #fffdf5; color: #87351f; font-size: 11px; font-weight: 600; cursor: pointer; }
+.hint-button:disabled { border-color: #a9a394; color: #68665d; background: #ece9df; cursor: default; }
+.hint-instruction { margin: 0 0 8px 27px; color: #87351f; font-size: 11px; line-height: 1.5; }
+.hint-instruction:empty { margin: 0; }
 .complete-feedback output { font-weight: 600; color: var(--teal); }
 .failed-feedback output { font-weight: 600; color: #8b3024; }
 .mode-badge { border: 1px solid #b5c3ad; border-radius: 3px; padding: 5px 8px; color: var(--teal); font-family: 'Avenir Next', Avenir, 'Segoe UI', sans-serif; font-size: 9px; font-style: normal; font-weight: 600; letter-spacing: .5px; }
@@ -86,8 +93,9 @@ h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(32px, 4.5v
 .start-puzzle { display: block; min-height: 48px; min-width: 190px; margin: 21px auto 0; padding: 10px 24px; border: 1px solid #19463e; border-radius: 4px; background: var(--teal); color: #fffdf5; font-size: 13px; font-weight: 600; cursor: pointer; }
 .start-puzzle:hover { background: #19463e; }
 .attempt-count { margin: 12px 0 0; color: var(--teal); font-size: 12px; font-weight: 600; text-align: center; }
-.round-result { display: flex; justify-content: center; gap: 10px; margin: 10px 0 0; font-size: 12px; }
+.round-result { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0 0; font-size: 12px; text-align: center; }
 .round-result strong { color: var(--teal); }
+.result-motif { flex-basis: 100%; color: var(--muted); font-family: Georgia, serif; font-style: italic; }
 .lost-result strong, .lost-result span { color: #8b3024; }
 .how-to-play { display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 24px; margin: 23px auto 0; max-width: 832px; }
 .how-to-play p { display: flex; align-items: center; gap: 9px; font-size: 11px; margin: 0; }

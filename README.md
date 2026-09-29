@@ -31,16 +31,18 @@ The browser suite builds the app and starts a local production preview automatic
 - Choose Easy, Medium, or Hard before starting. Medium is preselected. Modes share the same target and tile placement, with different approved art tiers and 15 / 13 / 10 swaps.
 - Tap a tile, then another tile anywhere on the board. Both tiles exchange all their visual attributes.
 - Tap the selected tile again, press Escape from a tile, or use **Clear selection** to cancel. To change your first tile, cancel before selecting another.
+- Use the one available hint to highlight a productive swap. It does not move tiles or spend an attempt; hinted results are marked assisted.
 - Use Tab / Shift+Tab to move between tiles in row-major order. Enter and Space select or swap; moving focus alone never changes the board.
 - Every committed swap uses one attempt. Selection and cancellation are free. A correct final swap wins; an incorrect final attempt ends in failure. Both terminal boards remain inspectable and reject further swaps.
-- Reloading returns to mode selection; starting again creates a fresh round. There is no undo, restart control, timer, hint, saved progress, daily release, or installable PWA in this slice.
+- Active solve timing starts on the first committed swap, pauses while the page is hidden, and stops at win or failure. Results show active time, swaps used and allowed, hint use, and a concise motif explanation.
+- Reloading returns to mode selection; starting again creates a fresh round. There is no undo, restart control, saved progress, daily release, or installable PWA in this slice.
 
 ## Design boundaries
 
 Puzzle code and its unit tests live together in `src/features/puzzle/`; browser tests live in `e2e/`.
 
 - **Content and modes:** readonly tile appearances and puzzle definitions. `sample-puzzle.ts` supplies the target and fixed permutation; difficulty configuration supplies art policies and attempt limits.
-- **Rules:** `createPuzzleEngine(puzzle, options)` returns a pure initializer and reducer. The engine handles selection, atomic whole-tile swaps, attempt accounting, and win/loss states. It imports no React, browser, artwork, or storage implementation.
+- **Rules:** `createPuzzleEngine(puzzle, options)` returns a pure initializer and reducer. The engine handles selection, atomic whole-tile swaps, attempt accounting, productive hint selection, and win/loss states. Active timing uses a separate deterministic timer model. Neither imports React, artwork, or storage implementation.
 - **Appearance:** a registry of polyline motifs, integer quarter-turn/reflection transforms, and canonical stroke geometry. Rendering and equivalence share the same normalized geometry, foreground/background colors, and stroke weight. Symmetric rotations and reflections are accepted; invisible identifiers are ignored.
 - **UI:** React connects reducer actions to semantic controls. Artwork, static target, interactive board, and page composition have separate responsibilities.
 
@@ -48,7 +50,7 @@ These boundaries apply SOLID through composition: focused modules, extensible mo
 
 ## Verification scope
 
-Unit tests cover immutable transitions, free selection/cancellation, swap accounting, last-attempt win/loss, every visual attribute, equivalent pieces, symmetry, terminal locking, difficulty art projection, and the fixed fixture's solution. Browser tests exercise mode selection and budgets plus the actual UI using keyboard and pointer/touch, compare the completed SVG board with the reference, verify announcements and focus, and check reload behavior.
+Unit tests cover immutable transitions, free selection/cancellation, swap accounting, productive one-use hints, visual equivalence, hidden-page timer pauses, result time formatting, last-attempt win/loss, every visual attribute, symmetry, terminal locking, difficulty art projection, and the fixed fixture's solution. Browser tests exercise hint feedback and assisted results, mode selection and budgets, and the game using keyboard and pointer/touch; they compare the completed SVG board with the reference, verify announcements and focus, and check reload behavior.
 
 The browser matrix includes desktop Chromium/WebKit and emulated phones at 375px/320px. Layout tests also check 1280px, at least 44px square playable cells, no horizontal overflow, and reduced-motion settings. Feedback uses outlines, symbols, and text as well as color; SVG art is paired with accessible position/attribute descriptions.
 

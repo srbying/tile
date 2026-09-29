@@ -31,5 +31,10 @@ const start = [...target];
 for (const [left, right] of sampleSolution) [start[left], start[right]] = [start[right]!, start[left]!];
 
 export const samplePuzzle: PuzzleDefinition = {
-  id: 'sample-mosaic-01', title: 'The courtyard', size: 6, target, start,
+  id: 'sample-mosaic-01',
+  title: 'The courtyard',
+  motifDescription: 'Greek-key border around four inset diamonds.',
+  size: 6,
+  target,
+  start,
 };

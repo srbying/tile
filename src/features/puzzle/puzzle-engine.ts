@@ -1,4 +1,5 @@
 import type { GameAction, GameState, PuzzleDefinition, PuzzleEngineOptions } from './puzzle.types';
+import { findProductiveHint } from './puzzle-hint';
 
 /** Rules depend only on immutable data and a visual-equivalence contract. */
 export function createPuzzleEngine(puzzle: PuzzleDefinition, { sameAppearance, attemptLimit }: PuzzleEngineOptions) {
@@ -21,6 +22,8 @@ export function createPuzzleEngine(puzzle: PuzzleDefinition, { sameAppearance, a
       status: isSolved(board) ? 'won' : 'playing',
       attemptsUsed: 0,
       attemptLimit,
+      hintUsed: false,
+      hintedPositions: null,
     };
   }
 
@@ -28,6 +31,11 @@ export function createPuzzleEngine(puzzle: PuzzleDefinition, { sameAppearance, a
     if (state.status !== 'playing') return state;
     if (action.type === 'cancel') {
       return state.selectedPosition === null ? state : { ...state, selectedPosition: null };
+    }
+    if (action.type === 'useHint') {
+      if (state.hintUsed) return state;
+      const hintedPositions = findProductiveHint(state.board, puzzle.target, sameAppearance);
+      return hintedPositions === null ? state : { ...state, hintUsed: true, hintedPositions };
     }
 
     const position = action.position;
@@ -44,7 +52,15 @@ export function createPuzzleEngine(puzzle: PuzzleDefinition, { sameAppearance, a
       : attemptsUsed >= state.attemptLimit
         ? 'lost'
         : 'playing';
-    return { board, selectedPosition: null, status, attemptsUsed, attemptLimit: state.attemptLimit };
+    return {
+      board,
+      selectedPosition: null,
+      status,
+      attemptsUsed,
+      attemptLimit: state.attemptLimit,
+      hintUsed: state.hintUsed,
+      hintedPositions: null,
+    };
   }
 
   return { initialize, reduce };
