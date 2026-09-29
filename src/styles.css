@@ -71,6 +71,7 @@ h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(32px, 4.5v
 .hint-button { min-height: 44px; padding: 5px 13px; border: 1px solid var(--terracotta); border-radius: 3px; background: #fffdf5; color: #87351f; font-size: 11px; font-weight: 600; cursor: pointer; }
 .hint-button:disabled { border-color: #a9a394; color: #68665d; background: #ece9df; cursor: default; }
 .hint-instruction { margin: 0 0 8px 27px; color: #87351f; font-size: 11px; line-height: 1.5; }
+.hint-instruction:empty { margin: 0; }
 .complete-feedback output { font-weight: 600; color: var(--teal); }
 .failed-feedback output { font-weight: 600; color: #8b3024; }
 .mode-badge { border: 1px solid #b5c3ad; border-radius: 3px; padding: 5px 8px; color: var(--teal); font-family: 'Avenir Next', Avenir, 'Segoe UI', sans-serif; font-size: 9px; font-style: normal; font-weight: 600; letter-spacing: .5px; }

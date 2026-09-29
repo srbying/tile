@@ -113,6 +113,8 @@ test('keyboard focus is row-major, selection is separate, and Escape cancels', a
 test('uses one productive hint without consuming a swap and marks the result assisted', async ({ page, isMobile }) => {
   await startGame(page);
   const before = await artworks(page);
+  await expect(page.locator('#hint-instruction')).toHaveCount(1);
+  await expect(page.locator('#hint-instruction')).toBeEmpty();
   await page.getByRole('button', { name: 'Use hint', exact: true }).click();
 
   const hinted = board(page).locator('.is-hinted');

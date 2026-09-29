@@ -136,22 +136,24 @@ function PuzzleRound({ tier }: { readonly tier: DifficultyTierConfig }) {
     return () => document.removeEventListener('visibilitychange', updateVisibility);
   }, []);
 
-  useEffect(() => {
-    if (!terminal) return;
-    const stopped = stopActiveSolveTimer(timer.current, performance.now());
-    timer.current = stopped;
-    setActiveElapsedMilliseconds(getActiveSolveMilliseconds(stopped, performance.now()));
-  }, [terminal]);
-
   const activatePosition = (position: number) => {
-    if (state.status === 'playing' && state.selectedPosition !== null && state.selectedPosition !== position) {
-      timer.current = startActiveSolveTimer(
-        timer.current,
-        performance.now(),
-        document.visibilityState === 'visible',
-      );
+    const action = { type: 'activate', position } as const;
+    const commitsSwap = state.status === 'playing'
+      && state.selectedPosition !== null
+      && state.selectedPosition !== position;
+
+    if (commitsSwap) {
+      const now = performance.now();
+      timer.current = startActiveSolveTimer(timer.current, now, document.visibilityState === 'visible');
+      const nextState = engine.reduce(state, action);
+      if (nextState.status !== 'playing') {
+        const stopped = stopActiveSolveTimer(timer.current, now);
+        timer.current = stopped;
+        setActiveElapsedMilliseconds(getActiveSolveMilliseconds(stopped, now));
+      }
     }
-    dispatch({ type: 'activate', position });
+
+    dispatch(action);
   };
 
   return (
@@ -201,7 +203,7 @@ function PuzzleRound({ tier }: { readonly tier: DifficultyTierConfig }) {
               <output aria-live="polite" aria-atomic="true">
                 <span className="feedback-icon" aria-hidden="true">{won ? '✓' : lost ? '×' : '↔'}</span>{message}
               </output>
-              {hintMessage !== null && <p className="hint-instruction" id="hint-instruction" aria-live="polite">{hintMessage}</p>}
+              <p className="hint-instruction" id="hint-instruction" aria-live="polite">{hintMessage ?? ''}</p>
               <div className="game-actions">
                 <button className="clear-selection" type="button" tabIndex={0} disabled={selected === null || terminal} onClick={() => dispatch({ type: 'cancel' })}>Clear selection</button>
                 <button className="hint-button" type="button" disabled={state.hintUsed || terminal} onClick={() => dispatch({ type: 'useHint' })}>Use hint</button>
