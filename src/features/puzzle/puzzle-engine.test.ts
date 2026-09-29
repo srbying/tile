@@ -117,6 +117,39 @@ describe('player transitions', () => {
     expect(createPuzzleEngine({ ...puzzle, start: target }, { sameAppearance, attemptLimit: 15 }).initialize().status).toBe('won');
   });
 
+  it('restores board, mode budget, attempts, and one-use hint state', () => {
+    const initial = engine.initialize();
+    const moved = engine.reduce(
+      engine.reduce(initial, { type: 'activate', position: 0 }),
+      { type: 'activate', position: 1 },
+    );
+    const hinted = engine.reduce(moved, { type: 'useHint' });
+
+    const restored = engine.restore({
+      board: hinted.board,
+      attemptsUsed: hinted.attemptsUsed,
+      hintUsed: hinted.hintUsed,
+      hintedPositions: hinted.hintedPositions,
+    });
+
+    expect(restored).toEqual({ ...hinted, selectedPosition: null });
+    expect(restored?.attemptLimit).toBe(15);
+    expect(restored?.attemptsUsed).toBe(1);
+    expect(restored?.hintUsed).toBe(true);
+  });
+
+  it('rejects malformed and terminal saved game state', () => {
+    expect(engine.restore({ board: [], attemptsUsed: 1, hintUsed: false, hintedPositions: null })).toBeNull();
+    expect(engine.restore({
+      board: Array.from({ length: 36 }, () => plain),
+      attemptsUsed: 1,
+      hintUsed: false,
+      hintedPositions: null,
+    })).toBeNull();
+    expect(engine.restore({ board: start, attemptsUsed: 15, hintUsed: false, hintedPositions: null })).toBeNull();
+    expect(engine.restore({ board: target, attemptsUsed: 0, hintUsed: false, hintedPositions: null })).toBeNull();
+  });
+
   it('lets callers supply the appearance policy without changing rules', () => {
     const byMotif = createPuzzleEngine(puzzle, { sameAppearance: (left, right) => left.motif === right.motif, attemptLimit: 15 });
     const selected = byMotif.reduce(byMotif.initialize(), { type: 'activate', position: 0 });

@@ -1,4 +1,4 @@
-import type { GameAction, GameState, PuzzleDefinition, PuzzleEngineOptions } from './puzzle.types';
+import type { GameAction, GameState, PuzzleDefinition, PuzzleEngineOptions, RestorableGameState } from './puzzle.types';
 import { findProductiveHint } from './puzzle-hint';
 
 /** Rules depend only on immutable data and a visual-equivalence contract. */
@@ -14,6 +14,20 @@ export function createPuzzleEngine(puzzle: PuzzleDefinition, { sameAppearance, a
   const isSolved = (board: GameState['board']) =>
     board.every((tile, position) => sameAppearance(tile, puzzle.target[position]!));
 
+  function isValidBoard(board: GameState['board']): boolean {
+    try {
+      const unmatchedTiles = [...puzzle.start];
+      for (const tile of board) {
+        const matchingIndex = unmatchedTiles.findIndex((candidate) => sameAppearance(candidate, tile));
+        if (matchingIndex < 0) return false;
+        unmatchedTiles.splice(matchingIndex, 1);
+      }
+      return unmatchedTiles.length === 0;
+    } catch {
+      return false;
+    }
+  }
+
   function initialize(): GameState {
     const board = [...puzzle.start];
     return {
@@ -24,6 +38,31 @@ export function createPuzzleEngine(puzzle: PuzzleDefinition, { sameAppearance, a
       attemptLimit,
       hintUsed: false,
       hintedPositions: null,
+    };
+  }
+
+  function restore(saved: RestorableGameState): GameState | null {
+    if (!Array.isArray(saved.board) || saved.board.length !== cellCount) return null;
+    if (!isValidBoard(saved.board)) return null;
+    if (!Number.isInteger(saved.attemptsUsed) || saved.attemptsUsed < 0 || saved.attemptsUsed >= attemptLimit) return null;
+    if (typeof saved.hintUsed !== 'boolean') return null;
+    const positions = saved.hintedPositions;
+    if (positions !== null && (!Array.isArray(positions)
+      || positions.length !== 2
+      || !positions.every((position) => Number.isInteger(position) && position >= 0 && position < cellCount)
+      || positions[0] === positions[1])) return null;
+    if (!saved.hintUsed && positions !== null) return null;
+
+    const board = [...saved.board];
+    if (isSolved(board)) return null;
+    return {
+      board,
+      selectedPosition: null,
+      status: 'playing',
+      attemptsUsed: saved.attemptsUsed,
+      attemptLimit,
+      hintUsed: saved.hintUsed,
+      hintedPositions: positions,
     };
   }
 
@@ -63,5 +102,5 @@ export function createPuzzleEngine(puzzle: PuzzleDefinition, { sameAppearance, a
     };
   }
 
-  return { initialize, reduce };
+  return { initialize, reduce, restore };
 }

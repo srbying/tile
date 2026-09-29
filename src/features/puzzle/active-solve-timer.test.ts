@@ -3,6 +3,7 @@ import {
   createActiveSolveTimer,
   formatActiveSolveTime,
   getActiveSolveMilliseconds,
+  resumeActiveSolveTimer,
   setActiveSolveTimerVisibility,
   startActiveSolveTimer,
   stopActiveSolveTimer,
@@ -29,6 +30,14 @@ describe('active solve timer', () => {
     expect(getActiveSolveMilliseconds(timer, 8_000)).toBe(0);
     timer = setActiveSolveTimerVisibility(timer, true, 8_000);
     expect(getActiveSolveMilliseconds(timer, 9_250)).toBe(1_250);
+  });
+
+  it('resumes saved active time without counting hidden time', () => {
+    let timer = resumeActiveSolveTimer(3_500, true, 10_000, false);
+    expect(getActiveSolveMilliseconds(timer, 30_000)).toBe(3_500);
+
+    timer = setActiveSolveTimerVisibility(timer, true, 30_000);
+    expect(getActiveSolveMilliseconds(timer, 31_250)).toBe(4_750);
   });
 
   it('formats elapsed active time as m:ss', () => {
