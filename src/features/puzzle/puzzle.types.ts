@@ -14,6 +14,7 @@ export interface TileAppearance {
 export interface PuzzleDefinition {
   readonly id: string;
   readonly title: string;
+  readonly motifDescription: string;
   readonly size: 6;
   readonly target: readonly TileAppearance[];
   readonly start: readonly TileAppearance[];
@@ -25,11 +26,14 @@ export interface GameState {
   readonly status: 'playing' | 'won' | 'lost';
   readonly attemptsUsed: number;
   readonly attemptLimit: number;
+  readonly hintUsed: boolean;
+  readonly hintedPositions: readonly [number, number] | null;
 }
 
 export type GameAction =
   | { readonly type: 'activate'; readonly position: number }
-  | { readonly type: 'cancel' };
+  | { readonly type: 'cancel' }
+  | { readonly type: 'useHint' };
 
 export type SameAppearance = (left: TileAppearance, right: TileAppearance) => boolean;
 

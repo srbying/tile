@@ -110,6 +110,40 @@ test('keyboard focus is row-major, selection is separate, and Escape cancels', a
   expect(focusStyle).toBe('dashed');
 });
 
+test('uses one productive hint without consuming a swap and marks the result assisted', async ({ page, isMobile }) => {
+  await startGame(page);
+  const before = await artworks(page);
+  await page.getByRole('button', { name: 'Use hint', exact: true }).click();
+
+  const hinted = board(page).locator('.is-hinted');
+  await expect(hinted).toHaveCount(2);
+  await expect(hinted.first()).toHaveAttribute('aria-describedby', 'hint-instruction');
+  await expect(page.getByText(/Hint: Swap Row 1, column 1 with Row 3, column 3/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Use hint', exact: true })).toBeDisabled();
+  await expect(page.getByText('13 of 13 swaps remaining', { exact: true })).toBeVisible();
+  expect(await artworks(page)).toEqual(before);
+  expect(await hinted.evaluateAll((elements) => elements.map((element) => Number(element.getAttribute('data-position')))))
+    .toEqual([0, 14]);
+
+  const activate = async (position: number) => {
+    const tile = board(page).locator(`[data-position="${position}"]`);
+    if (isMobile) await tile.tap();
+    else await tile.click();
+  };
+  await activate(0);
+  await activate(14);
+  await expect(board(page).locator('.is-hinted')).toHaveCount(0);
+  for (const [r1, c1, r2, c2] of solution.slice(1)) {
+    await activate((r1 - 1) * 6 + c1 - 1);
+    await activate((r2 - 1) * 6 + c2 - 1);
+  }
+
+  await expect(page.getByRole('status')).toContainText('Puzzle complete');
+  await expect(page.locator('.round-result')).toContainText('Assisted (hint used)');
+  await expect(page.locator('.round-result')).toContainText(/Active time: \d+:\d{2}/);
+  await expect(page.locator('.round-result')).toContainText('Greek-key border around four inset diamonds.');
+});
+
 for (const input of ['pointer', 'keyboard'] as const) {
   test(`solves using ${input}, announces completion, and locks all swaps`, async ({ page, isMobile }) => {
     await startGame(page);
@@ -128,6 +162,9 @@ for (const input of ['pointer', 'keyboard'] as const) {
     const target = await page.getByRole('list', { name: 'Target arrangement' }).locator('svg')
       .evaluateAll((elements) => elements.map((element) => element.innerHTML));
     expect(completed).toEqual(target);
+    await expect(page.locator('.round-result')).toContainText('Unassisted');
+    await expect(page.locator('.round-result')).toContainText(/Active time: \d+:\d{2}/);
+    await expect(page.locator('.round-result')).toContainText('Greek-key border around four inset diamonds.');
     await expect(board(page).getByRole('button', { pressed: true })).toHaveCount(0);
     await expect(board(page).getByRole('button', { disabled: true })).toHaveCount(36);
     await expect(board(page)).toHaveClass(/is-won/);
@@ -184,6 +221,9 @@ test('a loss on the final Hard attempt colors and locks the full board', async (
   await expect(page.getByRole('status')).toContainText('No attempts remaining');
   await expect(page.locator('.round-result').getByText('Hard mode', { exact: true })).toBeVisible();
   await expect(page.locator('.round-result').getByText('10 of 10 swaps used', { exact: true })).toBeVisible();
+  await expect(page.locator('.round-result')).toContainText('Unassisted');
+  await expect(page.locator('.round-result')).toContainText(/Active time: \d+:\d{2}/);
+  await expect(page.locator('.round-result')).toContainText('Greek-key border around four inset diamonds.');
   await expect(board(page)).toHaveClass(/is-lost/);
   await expect(board(page).getByRole('button', { disabled: true })).toHaveCount(36);
   await expect(board(page).locator('.outcome-mark')).toHaveCount(36);
