@@ -1,6 +1,7 @@
 export type Motif = 'meander' | 'chevron' | 'diamond';
 export type TileColor = 'teal' | 'terracotta';
 export type QuarterTurn = 0 | 90 | 180 | 270;
+export type DifficultyTierId = 'easy' | 'medium' | 'hard';
 
 export interface TileAppearance {
   readonly motif: Motif;
@@ -28,6 +29,20 @@ export interface GameState {
   readonly attemptLimit: number;
   readonly hintUsed: boolean;
   readonly hintedPositions: readonly [number, number] | null;
+}
+
+export interface RestorableGameState {
+  readonly board: readonly TileAppearance[];
+  readonly attemptsUsed: number;
+  readonly hintUsed: boolean;
+  readonly hintedPositions: readonly [number, number] | null;
+}
+
+export interface SavedPuzzleProgressV1 extends RestorableGameState {
+  readonly version: 1;
+  readonly puzzleId: string;
+  readonly tierId: DifficultyTierId;
+  readonly elapsedMilliseconds: number;
 }
 
 export type GameAction =

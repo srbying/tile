@@ -229,6 +229,7 @@ test('a loss on the final Hard attempt colors and locks the full board', async (
   await expect(board(page)).toHaveClass(/is-lost/);
   await expect(board(page).getByRole('button', { disabled: true })).toHaveCount(36);
   await expect(board(page).locator('.outcome-mark')).toHaveCount(36);
+  expect(await page.evaluate(() => localStorage.getItem('tile-puzzle-progress:v1'))).toBeNull();
 });
 
 test('Hard mode wins on its tenth and final attempt', async ({ page }) => {
@@ -241,9 +242,10 @@ test('Hard mode wins on its tenth and final attempt', async ({ page }) => {
   await expect(page.locator('.round-result').getByText('Hard mode', { exact: true })).toBeVisible();
   await expect(page.locator('.round-result').getByText('10 of 10 swaps used', { exact: true })).toBeVisible();
   await expect(board(page)).toHaveClass(/is-won/);
+  expect(await page.evaluate(() => localStorage.getItem('tile-puzzle-progress:v1'))).toBeNull();
 });
 
-test('reload returns to the mode picker with Medium selected and raises no browser errors', async ({ page }) => {
+test('reload before a committed move returns to mode picker and raises no browser errors', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
@@ -252,4 +254,37 @@ test('reload returns to the mode picker with Medium selected and raises no brows
   await expect(page.getByRole('radio', { name: /^Medium\b/ })).toBeChecked();
   await expect(page.getByRole('button', { name: 'Start puzzle', exact: true })).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test('reload resumes saved mode, board, attempts, hint, and active time', async ({ page }) => {
+  await startGame(page, 'Hard');
+  await cell(page, 1, 1).click();
+  await cell(page, 1, 2).click();
+  await page.getByRole('button', { name: 'Use hint', exact: true }).click();
+  const boardBeforeReload = await artworks(page);
+  const savedBeforeReload = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
+  expect(savedBeforeReload).toMatchObject({
+    version: 1,
+    puzzleId: 'sample-mosaic-01',
+    tierId: 'hard',
+    attemptsUsed: 1,
+    hintUsed: true,
+  });
+
+  await page.waitForTimeout(1_050);
+  await page.reload();
+
+  await expect(page.getByText('Hard mode', { exact: true })).toBeVisible();
+  await expect(page.getByText('9 of 10 swaps remaining', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Use hint', exact: true })).toBeDisabled();
+  await expect(board(page).locator('.is-hinted')).toHaveCount(2);
+  expect(await artworks(page)).toEqual(boardBeforeReload);
+  const savedAfterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
+  expect(savedAfterReload.elapsedMilliseconds).toBeGreaterThanOrEqual(savedBeforeReload.elapsedMilliseconds + 900);
+
+  await cell(page, 1, 3).click();
+  await cell(page, 1, 4).click();
+  const afterNextSwap = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
+  expect(afterNextSwap.attemptsUsed).toBe(2);
+  expect(afterNextSwap.elapsedMilliseconds).toBeGreaterThan(savedAfterReload.elapsedMilliseconds);
 });

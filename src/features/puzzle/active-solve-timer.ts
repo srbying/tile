@@ -9,6 +9,21 @@ export function createActiveSolveTimer(): ActiveSolveTimer {
   return { elapsedMilliseconds: 0, runningSince: null, started: false, stopped: false };
 }
 
+export function resumeActiveSolveTimer(
+  elapsedMilliseconds: number,
+  started: boolean,
+  now: number,
+  visible = true,
+): ActiveSolveTimer {
+  const elapsed = Number.isFinite(elapsedMilliseconds) ? Math.max(0, elapsedMilliseconds) : 0;
+  return {
+    elapsedMilliseconds: elapsed,
+    runningSince: started && visible ? now : null,
+    started,
+    stopped: false,
+  };
+}
+
 export function startActiveSolveTimer(
   timer: ActiveSolveTimer,
   now: number,

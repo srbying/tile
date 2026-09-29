@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { buildDifficultyPuzzle, difficultyTierConfigs, getDifficultyTierConfig } from './difficulty-preview';
 import type { DifficultyTierId, DifficultyTierConfig } from './difficulty-preview';
 import { createPuzzleEngine } from './puzzle-engine';
@@ -9,10 +9,14 @@ import {
   createActiveSolveTimer,
   formatActiveSolveTime,
   getActiveSolveMilliseconds,
+  resumeActiveSolveTimer,
   setActiveSolveTimerVisibility,
   startActiveSolveTimer,
   stopActiveSolveTimer,
 } from './active-solve-timer';
+import { createPuzzleProgressRepository, resolvePuzzleForProgress } from './puzzle-progress';
+import type { PuzzleProgressRepository } from './puzzle-progress';
+import type { PuzzleDefinition, SavedPuzzleProgressV1 } from './puzzle.types';
 
 function MosaicMark() {
   return (
@@ -99,13 +103,28 @@ function ModeSelection({
   );
 }
 
-function PuzzleRound({ tier }: { readonly tier: DifficultyTierConfig }) {
-  const puzzle = useMemo(() => buildDifficultyPuzzle(samplePuzzle, tier.id), [tier.id]);
+function PuzzleRound({
+  basePuzzle,
+  tier,
+  restoredProgress,
+  progressRepository,
+}: {
+  readonly basePuzzle: PuzzleDefinition;
+  readonly tier: DifficultyTierConfig;
+  readonly restoredProgress: SavedPuzzleProgressV1 | null;
+  readonly progressRepository: PuzzleProgressRepository;
+}) {
+  const puzzle = useMemo(() => buildDifficultyPuzzle(basePuzzle, tier.id), [basePuzzle, tier.id]);
   const engine = useMemo(
     () => createPuzzleEngine(puzzle, { sameAppearance, attemptLimit: tier.attemptLimit }),
     [puzzle, tier.attemptLimit],
   );
-  const [state, dispatch] = useReducer(engine.reduce, undefined, engine.initialize);
+  const [state, dispatch] = useReducer(
+    engine.reduce,
+    restoredProgress,
+    (saved) => saved ? engine.restore(saved) ?? engine.initialize() : engine.initialize(),
+  );
+  const checkpointState = useRef(state);
   const timer = useRef(createActiveSolveTimer());
   const [activeElapsedMilliseconds, setActiveElapsedMilliseconds] = useState<number | null>(null);
   const won = state.status === 'won';
@@ -124,20 +143,59 @@ function PuzzleRound({ tier }: { readonly tier: DifficultyTierConfig }) {
     ? null
     : `Hint: Swap ${describePosition(state.hintedPositions[0])} with ${describePosition(state.hintedPositions[1])} to move closer to the target.`;
 
+  const saveProgress = useCallback((nextState: typeof state, now: number) => {
+    progressRepository.save({
+      version: 1,
+      puzzleId: basePuzzle.id,
+      tierId: tier.id,
+      board: nextState.board,
+      attemptsUsed: nextState.attemptsUsed,
+      hintUsed: nextState.hintUsed,
+      hintedPositions: nextState.hintedPositions,
+      elapsedMilliseconds: getActiveSolveMilliseconds(timer.current, now),
+    });
+  }, [basePuzzle.id, tier.id, progressRepository]);
+
   useEffect(() => {
-    const updateVisibility = () => {
-      timer.current = setActiveSolveTimerVisibility(
-        timer.current,
-        document.visibilityState === 'visible',
-        performance.now(),
-      );
+    if (!restoredProgress) return;
+    timer.current = resumeActiveSolveTimer(
+      restoredProgress.elapsedMilliseconds,
+      restoredProgress.attemptsUsed > 0,
+      performance.now(),
+      document.visibilityState === 'visible',
+    );
+  }, [restoredProgress]);
+
+  useEffect(() => {
+    const checkpoint = (now: number) => {
+      const currentState = checkpointState.current;
+      if (currentState.status === 'playing' && (currentState.attemptsUsed > 0 || currentState.hintUsed)) {
+        saveProgress(currentState, now);
+      }
     };
+    const setVisibility = (visible: boolean) => {
+      const now = performance.now();
+      timer.current = setActiveSolveTimerVisibility(timer.current, visible, now);
+      if (!visible) checkpoint(now);
+    };
+    const updateVisibility = () => setVisibility(document.visibilityState === 'visible');
+    const onPageHide = () => setVisibility(false);
+    const onPageShow = () => updateVisibility();
+
     document.addEventListener('visibilitychange', updateVisibility);
-    return () => document.removeEventListener('visibilitychange', updateVisibility);
-  }, []);
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('pageshow', onPageShow);
+    return () => {
+      document.removeEventListener('visibilitychange', updateVisibility);
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('pageshow', onPageShow);
+    };
+  }, [saveProgress]);
 
   const activatePosition = (position: number) => {
     const action = { type: 'activate', position } as const;
+    const nextState = engine.reduce(state, action);
+    checkpointState.current = nextState;
     const commitsSwap = state.status === 'playing'
       && state.selectedPosition !== null
       && state.selectedPosition !== position;
@@ -145,15 +203,24 @@ function PuzzleRound({ tier }: { readonly tier: DifficultyTierConfig }) {
     if (commitsSwap) {
       const now = performance.now();
       timer.current = startActiveSolveTimer(timer.current, now, document.visibilityState === 'visible');
-      const nextState = engine.reduce(state, action);
       if (nextState.status !== 'playing') {
         const stopped = stopActiveSolveTimer(timer.current, now);
         timer.current = stopped;
         setActiveElapsedMilliseconds(getActiveSolveMilliseconds(stopped, now));
+        progressRepository.clear();
+      } else {
+        saveProgress(nextState, now);
       }
     }
 
     dispatch(action);
+  };
+
+  const useHint = () => {
+    const nextState = engine.reduce(state, { type: 'useHint' });
+    checkpointState.current = nextState;
+    if (nextState !== state) saveProgress(nextState, performance.now());
+    dispatch({ type: 'useHint' });
   };
 
   return (
@@ -164,7 +231,7 @@ function PuzzleRound({ tier }: { readonly tier: DifficultyTierConfig }) {
           <div className="eyebrow"><span className="small-rule" /> AN EVERYDAY MOSAIC</div>
           <h1 id="game-title">Daily Tile-Swap Puzzle<span className="title-dot">.</span></h1>
           <p id="game-instruction" className="intro-copy">Match the target. Tap two tiles to swap them.</p>
-          <div className="puzzle-caption"><span className="sample-badge">SAMPLE Nº 01</span><span>{samplePuzzle.title}</span><span className="mode-badge">{tier.label} mode</span></div>
+          <div className="puzzle-caption"><span className="sample-badge">SAMPLE Nº 01</span><span>{basePuzzle.title}</span><span className="mode-badge">{tier.label} mode</span></div>
         </section>
 
         <div className="game-layout">
@@ -206,7 +273,7 @@ function PuzzleRound({ tier }: { readonly tier: DifficultyTierConfig }) {
               <p className="hint-instruction" id="hint-instruction" aria-live="polite">{hintMessage ?? ''}</p>
               <div className="game-actions">
                 <button className="clear-selection" type="button" tabIndex={0} disabled={selected === null || terminal} onClick={() => dispatch({ type: 'cancel' })}>Clear selection</button>
-                <button className="hint-button" type="button" disabled={state.hintUsed || terminal} onClick={() => dispatch({ type: 'useHint' })}>Use hint</button>
+                <button className="hint-button" type="button" disabled={state.hintUsed || terminal} onClick={useHint}>Use hint</button>
               </div>
             </div>
           </section>
@@ -225,11 +292,44 @@ function PuzzleRound({ tier }: { readonly tier: DifficultyTierConfig }) {
 }
 
 export function PuzzleGame() {
+  const [progressRepository] = useState(() => createPuzzleProgressRepository({
+    getItem: (key) => window.localStorage.getItem(key),
+    setItem: (key, value) => window.localStorage.setItem(key, value),
+    removeItem: (key) => window.localStorage.removeItem(key),
+  }));
+  const [restoredRound] = useState(() => {
+    const saved = progressRepository.load();
+    if (!saved) return null;
+    const puzzleCatalog = new Map<string, PuzzleDefinition>([[samplePuzzle.id, samplePuzzle]]);
+    const basePuzzle = resolvePuzzleForProgress(saved, samplePuzzle, (id) => puzzleCatalog.get(id));
+    if (basePuzzle.id !== saved.puzzleId) return null;
+    const tier = getDifficultyTierConfig(saved.tierId);
+    const puzzle = buildDifficultyPuzzle(basePuzzle, tier.id);
+    const engine = createPuzzleEngine(puzzle, { sameAppearance, attemptLimit: tier.attemptLimit });
+    if (!engine.restore(saved)) return null;
+    return { basePuzzle, tier, progress: saved };
+  });
   const [selectedTier, setSelectedTier] = useState<DifficultyTierId>('medium');
   const [started, setStarted] = useState(false);
   const tier = getDifficultyTierConfig(selectedTier);
 
+  if (restoredRound) {
+    return <PuzzleRound
+      key={`${restoredRound.basePuzzle.id}-${restoredRound.tier.id}`}
+      basePuzzle={restoredRound.basePuzzle}
+      tier={restoredRound.tier}
+      restoredProgress={restoredRound.progress}
+      progressRepository={progressRepository}
+    />;
+  }
+
   return started
-    ? <PuzzleRound key={selectedTier} tier={tier} />
+    ? <PuzzleRound
+      key={`${samplePuzzle.id}-${selectedTier}`}
+      basePuzzle={samplePuzzle}
+      tier={tier}
+      restoredProgress={null}
+      progressRepository={progressRepository}
+    />
     : <ModeSelection selectedTier={selectedTier} onSelect={setSelectedTier} onStart={() => setStarted(true)} />;
 }
