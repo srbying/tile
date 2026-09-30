@@ -24,6 +24,10 @@ test('serves a stable generated daily puzzle and starts gameplay with it', async
   expect(savedResponse.headers()['cache-control']).toContain('immutable');
   expect(await savedResponse.json()).toEqual(release);
 
+  const malformedIdResponse = await page.request.get('/api/puzzles/%E0%A4%A');
+  expect(malformedIdResponse.status()).toBe(404);
+  expect(await malformedIdResponse.json()).toEqual({ error: 'Puzzle not found.' });
+
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /Daily Tile-Swap Puzzle/ })).toBeVisible();
   await expect(page.getByText(`DAILY Nº ${release.releaseDate}`)).toBeVisible();

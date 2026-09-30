@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import * as solver from './puzzle-solver';
 import { validatePuzzleCandidate } from './puzzle-candidate';
 import { sameAppearance } from './tile-appearance';
 import type { PuzzleCandidate, TileAppearance } from './puzzle.types';
@@ -83,6 +84,25 @@ describe('puzzle candidate validation', () => {
     [start[0], start[1]] = [start[1]!, start[0]!];
 
     expect(codes({ ...value, start })).toContain('incorrect-shortest-solution');
+  });
+
+  it('skips exhaustive solving when more than twenty visible positions differ', () => {
+    const value = candidate();
+    const start = [...value.start];
+    [start[20], start[21]] = [start[21]!, start[20]!];
+    const solve = vi.spyOn(solver, 'minimumVisibleSwaps');
+
+    const result = validatePuzzleCandidate({ ...value, start });
+    const solverWasCalled = solve.mock.calls.length > 0;
+    solve.mockRestore();
+
+    expect(solverWasCalled).toBe(false);
+    expect(result.tiers.map(({ minimumSwaps }) => minimumSwaps)).toEqual([null, null, null]);
+    expect(result.issues.map(({ code }) => code)).toEqual([
+      'incorrect-shortest-solution',
+      'incorrect-shortest-solution',
+      'incorrect-shortest-solution',
+    ]);
   });
 
   it('rejects an authored hint that does not improve visible matches', () => {

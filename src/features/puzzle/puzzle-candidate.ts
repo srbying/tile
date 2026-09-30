@@ -163,11 +163,18 @@ export function validatePuzzleCandidate(value: unknown, options: PuzzleValidatio
   const tiers: PuzzleTierValidation[] = [];
   for (const config of difficultyTierConfigs) {
     const puzzle = buildDifficultyPuzzle(candidate, config.id);
-    const minimumSwaps = minimumVisibleSwaps(puzzle.start, puzzle.target, sameAppearance);
+    const differingPositions = puzzle.start.reduce((count, tile, index) =>
+      count + Number(!sameAppearance(tile, puzzle.target[index]!)), 0);
+    const exceedsTenSwapBound = differingPositions > 20;
+    const minimumSwaps = exceedsTenSwapBound
+      ? null
+      : minimumVisibleSwaps(puzzle.start, puzzle.target, sameAppearance);
     const attemptLimit = candidate.attemptLimits[config.id];
     let hint = candidate.hints?.[config.id] ?? findProductiveHint(puzzle.start, puzzle.target, sameAppearance);
 
-    if (minimumSwaps === null) {
+    if (exceedsTenSwapBound) {
+      issues.push({ code: 'incorrect-shortest-solution', message: `${config.label} must require exactly 10 visible swaps.`, tierId: config.id });
+    } else if (minimumSwaps === null) {
       issues.push({ code: 'unsolvable-inventory', message: `${config.label} tile appearances do not match the target inventory.`, tierId: config.id });
       hint = null;
     } else if (minimumSwaps === 0) {

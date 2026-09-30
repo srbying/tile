@@ -11,6 +11,14 @@ function methodNotAllowed(): Response {
   return Response.json({ error: 'Method not allowed.' }, { status: 405, headers: { Allow: 'GET' } });
 }
 
+export function decodePuzzleId(encodedPuzzleId: string): string {
+  try {
+    return decodeURIComponent(encodedPuzzleId);
+  } catch {
+    return '';
+  }
+}
+
 export function createDailyPuzzleApi(dependencies: DailyPuzzleApiDependencies = {}) {
   const now = dependencies.now ?? (() => new Date());
   const getToday = dependencies.getToday ?? getDailyPuzzleForNow;

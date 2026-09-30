@@ -1,8 +1,20 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createDailyPuzzleApi } from './daily-puzzle-api';
+import { createDailyPuzzleApi, decodePuzzleId } from './daily-puzzle-api';
 import { generateDailyPuzzle } from './daily-puzzle-generator';
 
 describe('daily puzzle API', () => {
+  it('treats malformed URI-encoded puzzle IDs as not found', async () => {
+    expect(decodePuzzleId('%E0%A4%A')).toBe('');
+
+    const getById = vi.fn(() => null);
+    const api = createDailyPuzzleApi({ getById });
+    const response = await api.byId(new Request('https://tile.example/api/puzzles/%E0%A4%A'), decodePuzzleId('%E0%A4%A'));
+
+    expect(getById).toHaveBeenCalledWith('');
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: 'Puzzle not found.' });
+  });
+
   it('returns today’s stable release from the New York date provider', async () => {
     const release = generateDailyPuzzle('2026-09-29');
     const getToday = vi.fn(() => release);

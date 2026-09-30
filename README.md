@@ -2,7 +2,7 @@
 
 A mobile-first React + TypeScript game: restore a daily 6×6 mosaic by swapping any two complete tiles. The target is always available above the board on phones and beside it on wider screens.
 
-Implements [issue #2](https://github.com/srbying/tile/issues/2), [issue #4](https://github.com/srbying/tile/issues/4), [issue #6](https://github.com/srbying/tile/issues/6), and [issue #7](https://github.com/srbying/tile/issues/7) of the [product plan](https://github.com/srbying/tile/issues/1).
+Implements [issue #2](https://github.com/srbying/tile/issues/2), [issue #4](https://github.com/srbying/tile/issues/4), and [issue #6](https://github.com/srbying/tile/issues/6) of the [product plan](https://github.com/srbying/tile/issues/1).
 
 ## Run locally
 
@@ -38,7 +38,7 @@ The browser suite builds the app and starts a local production preview automatic
 - Active solve timing starts on the first committed swap, pauses while the page is hidden, and stops at win or failure. Results show active time, swaps used and allowed, hint use, and a concise motif explanation.
 - Each day’s puzzle is generated deterministically from the New York calendar date. Every tier has a 10-swap shortest solution, budgets stay at 15 / 13 / 10, and visible targets do not repeat within 30 days.
 - Reload before the first move returns to mode selection. Reload an unfinished round to restore mode, board, attempts, hint, puzzle ID, and active time. Saved rounds fetch their original versioned puzzle by ID.
-- Open **Offline authoring** or visit `/author` to generate, edit, import, validate, preview, and export candidates. Authoring works offline and never gates daily releases.
+- Open **Offline authoring** or visit `/author` to generate, edit, import, validate, preview, and export candidates. Authoring is optional and separate from automatic daily generation.
 
 ## Design boundaries
 
@@ -56,6 +56,8 @@ These boundaries apply SOLID through composition: focused modules, extensible mo
 ## Deploy
 
 Connect the repository to Vercel with the root as the project root. Vercel builds the Vite app from `dist`, serves the TypeScript functions in `api/`, and rewrites client routes to `index.html`. Git integration provides PR previews and production deploys from `main`. Daily content is generated per request, with no scheduled job or daily build.
+
+Issue #7’s proposed human-approval gate was intentionally dropped. The daily API does not check an approval status.
 
 ## Verification scope
 

@@ -348,7 +348,12 @@ export function PuzzleGame() {
   const loadPuzzle = useCallback(async (signal: AbortSignal) => {
     const saved = progressRepository.load();
     if (saved) {
-      const savedRelease = await fetchRelease(`/api/puzzles/${encodeURIComponent(saved.puzzleId)}`, signal);
+      let savedRelease: DailyPuzzleRelease | null = null;
+      try {
+        savedRelease = await fetchRelease(`/api/puzzles/${encodeURIComponent(saved.puzzleId)}`, signal);
+      } catch (error) {
+        if (signal.aborted) throw error;
+      }
       if (savedRelease?.puzzleId === saved.puzzleId) {
         const savedTier = getDifficultyTierConfig(saved.tierId);
         const savedPuzzle = buildDifficultyPuzzle(savedRelease.puzzle, savedTier.id);

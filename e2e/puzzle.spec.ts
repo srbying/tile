@@ -33,6 +33,26 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
+test('falls back to today when saved-puzzle lookup fails', async ({ page }) => {
+  const startingBoard = samplePuzzle.start;
+  await page.evaluate((board) => localStorage.setItem('tile-puzzle-progress:v1', JSON.stringify({
+    version: 1,
+    puzzleId: 'sample-mosaic-01',
+    tierId: 'hard',
+    board,
+    attemptsUsed: 1,
+    hintUsed: false,
+    hintedPositions: null,
+    elapsedMilliseconds: 1,
+  })), startingBoard);
+  await page.route('**/api/puzzles/sample-mosaic-01', (route) => route.fulfill({ status: 503, body: '' }));
+
+  await page.reload();
+
+  await expect(page.getByRole('heading', { name: 'Choose your mode' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('tile-puzzle-progress:v1'))).toBeNull();
+});
+
 test('preselects Medium and offers no unselected mode', async ({ page }) => {
   await expect(page.getByRole('radio')).toHaveCount(3);
   await expect(page.getByRole('radio', { name: /^Medium\b/ })).toBeChecked();

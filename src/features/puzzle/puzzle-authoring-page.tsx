@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { buildDifficultyPuzzle, difficultyTierConfigs } from './difficulty-preview';
 import {
   dailyPuzzleTargetCycleLength,
@@ -12,9 +12,6 @@ import { describePosition } from './puzzle-board';
 import { describeTile } from './tile-appearance';
 import { TileArtwork } from './tile-artwork';
 import type { PuzzleCandidate, TileAppearance } from './puzzle.types';
-
-const editorDate = getNewYorkPuzzleDate(new Date());
-const initialCandidate = generateDailyCandidate(editorDate);
 
 function CandidateBoard({
   tier,
@@ -52,10 +49,16 @@ function parseEditorText(text: string): { candidate: PuzzleCandidate | null; err
 }
 
 export function PuzzleAuthoringPage() {
+  const [initialSeed] = useState(() => {
+    const editorDate = getNewYorkPuzzleDate(new Date());
+    return { editorDate, candidate: generateDailyCandidate(editorDate) };
+  });
+  const { editorDate, candidate: initialCandidate } = initialSeed;
   const [source, setSource] = useState(() => JSON.stringify(initialCandidate, null, 2));
   const [generationVariation, setGenerationVariation] = useState(0);
   const [validation, setValidation] = useState<PuzzleValidationResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const fileReadVersion = useRef(0);
   const parsed = useMemo(() => parseEditorText(source), [source]);
   const candidate = parsed.candidate;
   const previews = candidate
@@ -72,9 +75,26 @@ export function PuzzleAuthoringPage() {
     setImportError(null);
   };
 
-  const loadFile = async (file: File | undefined) => {
-    if (!file) return;
-    const content = await file.text();
+  const loadFile = async (file: File | undefined, input: HTMLInputElement) => {
+    const readVersion = ++fileReadVersion.current;
+    if (!file) {
+      input.value = '';
+      return;
+    }
+
+    let content: string;
+    try {
+      content = await file.text();
+    } catch {
+      if (readVersion === fileReadVersion.current) {
+        setValidation(null);
+        setImportError('Could not read candidate JSON file.');
+      }
+      input.value = '';
+      return;
+    }
+    input.value = '';
+    if (readVersion !== fileReadVersion.current) return;
     setSource(content);
     setValidation(null);
     try {
@@ -107,6 +127,7 @@ export function PuzzleAuthoringPage() {
     const nextVariation = (generationVariation + 1) % dailyPuzzleTargetCycleLength;
     const generated = generateDailyCandidate(editorDate, nextVariation);
     setGenerationVariation(nextVariation);
+    fileReadVersion.current++;
     setSource(JSON.stringify(generated, null, 2));
     setValidation(null);
     setImportError(null);
@@ -140,7 +161,7 @@ export function PuzzleAuthoringPage() {
                 aria-label="Load candidate JSON"
                 type="file"
                 accept="application/json,.json"
-                onChange={(event) => { void loadFile(event.currentTarget.files?.[0]); }}
+                onChange={(event) => { void loadFile(event.currentTarget.files?.[0], event.currentTarget); }}
               />
             </label>
           </div>
@@ -149,6 +170,7 @@ export function PuzzleAuthoringPage() {
             spellCheck={false}
             value={source}
             onChange={(event) => {
+              fileReadVersion.current++;
               setSource(event.currentTarget.value);
               setValidation(null);
               setImportError(null);
@@ -169,7 +191,7 @@ export function PuzzleAuthoringPage() {
             <ul className="authoring-tier-results" aria-label="Validation by difficulty">
               {validation.tiers.map((tier) => (
                 <li key={tier.tierId}>
-                  {tier.tierId}: {tier.minimumSwaps ?? 'unsolvable'} shortest swaps; {tier.attemptLimit} allowed; hint {tier.hint ? 'valid' : 'invalid'}
+                  {tier.tierId}: {tier.minimumSwaps ?? (validation.issues.some((issue) => issue.tierId === tier.tierId && issue.code === 'incorrect-shortest-solution') ? 'over 10' : 'unsolvable')} shortest swaps; {tier.attemptLimit} allowed; hint {tier.hint ? 'valid' : 'invalid'}
                 </li>
               ))}
             </ul>

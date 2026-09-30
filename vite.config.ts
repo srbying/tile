@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import react from '@vitejs/plugin-react';
-import { createDailyPuzzleApi } from './src/features/puzzle/daily-puzzle-api.js';
+import { createDailyPuzzleApi, decodePuzzleId } from './src/features/puzzle/daily-puzzle-api.js';
 import { defineConfig } from 'vitest/config';
 
 const puzzleApi = createDailyPuzzleApi();
@@ -19,7 +19,7 @@ function installPuzzleApi(middlewares: { use: (handler: (request: IncomingMessag
 
     const match = /^\/api\/puzzles\/([^/]+)$/.exec(url.pathname);
     if (match) {
-      void puzzleApi.byId(new Request(url, { method: request.method }), decodeURIComponent(match[1]!)).then(async (result) => {
+      void puzzleApi.byId(new Request(url, { method: request.method }), decodePuzzleId(match[1]!)).then(async (result) => {
         response.statusCode = result.status;
         result.headers.forEach((value, key) => response.setHeader(key, value));
         response.end(await result.text());
