@@ -32,6 +32,32 @@ describe('daily puzzle API', () => {
     expect(getToday).toHaveBeenCalledWith(new Date('2026-09-29T12:00:00Z'));
   });
 
+  it('keeps one immutable ID per New York release and advances at midnight in both DST seasons', async () => {
+    let now = new Date('2026-03-08T04:59:59Z');
+    const api = createDailyPuzzleApi({ now: () => new Date(now) });
+    const getRelease = async () => {
+      const response = await api.today(new Request('https://tile.example/api/puzzles/today'));
+      expect(response.status).toBe(200);
+      return await response.json() as { puzzleId: string; releaseDate: string };
+    };
+
+    const beforeSpringMidnight = await getRelease();
+    expect(await getRelease()).toEqual(beforeSpringMidnight);
+    now = new Date('2026-03-08T05:00:00Z');
+    const afterSpringMidnight = await getRelease();
+    expect(afterSpringMidnight.releaseDate).toBe('2026-03-08');
+    expect(afterSpringMidnight.puzzleId).not.toBe(beforeSpringMidnight.puzzleId);
+
+    now = new Date('2026-11-01T03:59:59Z');
+    const beforeFallMidnight = await getRelease();
+    expect(beforeFallMidnight.releaseDate).toBe('2026-10-31');
+    expect(await getRelease()).toEqual(beforeFallMidnight);
+    now = new Date('2026-11-01T04:00:00Z');
+    const afterFallMidnight = await getRelease();
+    expect(afterFallMidnight.releaseDate).toBe('2026-11-01');
+    expect(afterFallMidnight.puzzleId).not.toBe(beforeFallMidnight.puzzleId);
+  }, 30000);
+
   it('rejects non-GET requests', async () => {
     const api = createDailyPuzzleApi();
 

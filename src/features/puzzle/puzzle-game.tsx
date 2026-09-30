@@ -3,10 +3,14 @@ import { buildDifficultyPuzzle, difficultyTierConfigs, getDifficultyTierConfig }
 import type { DifficultyTierId, DifficultyTierConfig } from './difficulty-preview';
 import { createPuzzleEngine } from './puzzle-engine';
 import { PuzzleBoard, TargetBoard, describePosition } from './puzzle-board';
-import { parsePuzzleCandidate, validatePuzzleCandidate } from './puzzle-candidate';
 import { createPuzzleProgressRepository } from './puzzle-progress';
 import type { PuzzleProgressRepository } from './puzzle-progress';
 import type { DailyPuzzleRelease, SavedPuzzleProgressV1 } from './puzzle.types';
+import {
+  createDailyPuzzleReleaseCache,
+  createDailyPuzzleReleaseLoader,
+  parseDailyPuzzleRelease,
+} from './daily-puzzle-release-cache';
 import { sameAppearance } from './tile-appearance';
 import {
   createActiveSolveTimer,
@@ -46,12 +50,14 @@ function ModeSelection({
   selectedTier,
   puzzle,
   releaseDate,
+  cachedCopy,
   onSelect,
   onStart,
 }: {
   readonly selectedTier: DifficultyTierId;
   readonly puzzle: DailyPuzzleRelease['puzzle'];
   readonly releaseDate: string;
+  readonly cachedCopy: boolean;
   readonly onSelect: (tier: DifficultyTierId) => void;
   readonly onStart: () => void;
 }) {
@@ -63,7 +69,7 @@ function ModeSelection({
           <div className="eyebrow"><span className="small-rule" /> AN EVERYDAY MOSAIC</div>
           <h1 id="game-title">Daily Tile-Swap Puzzle<span className="title-dot">.</span></h1>
           <p className="intro-copy">Choose a challenge. Same daily mosaic, same tile placement.</p>
-          <div className="puzzle-caption"><span className="sample-badge">DAILY Nº {releaseDate}</span><span>{puzzle.title}</span></div>
+          <div className="puzzle-caption"><span className="sample-badge">DAILY Nº {releaseDate}</span>{cachedCopy && <span className="cached-copy-label">Cached copy · {releaseDate}</span>}<span>{puzzle.title}</span></div>
         </section>
 
         <section className="mode-selection" aria-labelledby="mode-heading">
@@ -111,11 +117,13 @@ function PuzzleRound({
   tier,
   release,
   restoredProgress,
+  cachedCopy,
   progressRepository,
 }: {
   readonly tier: DifficultyTierConfig;
   readonly release: DailyPuzzleRelease;
   readonly restoredProgress: SavedPuzzleProgressV1 | null;
+  readonly cachedCopy: boolean;
   readonly progressRepository: PuzzleProgressRepository;
 }) {
   const puzzle = useMemo(() => buildDifficultyPuzzle(release.puzzle, tier.id), [release.puzzle, tier.id]);
@@ -236,7 +244,7 @@ function PuzzleRound({
           <div className="eyebrow"><span className="small-rule" /> AN EVERYDAY MOSAIC</div>
           <h1 id="game-title">Daily Tile-Swap Puzzle<span className="title-dot">.</span></h1>
           <p id="game-instruction" className="intro-copy">Match the target. Tap two tiles to swap them.</p>
-          <div className="puzzle-caption"><span className="sample-badge">DAILY Nº {release.releaseDate}</span><span>{release.puzzle.title}</span><span className="mode-badge">{tier.label} mode</span></div>
+          <div className="puzzle-caption"><span className="sample-badge">DAILY Nº {release.releaseDate}</span>{cachedCopy && <span className="cached-copy-label">Cached copy · {release.releaseDate}</span>}<span>{release.puzzle.title}</span><span className="mode-badge">{tier.label} mode</span></div>
         </section>
 
         <div className="game-layout">
@@ -313,6 +321,9 @@ function PuzzleLoadError({ onRetry }: { readonly onRetry: () => void }) {
 }
 
 export function PuzzleGame() {
+  const [dailyPuzzleCache] = useState(() => typeof window !== 'undefined' && 'caches' in window
+    ? createDailyPuzzleReleaseCache(window.caches, window.location.origin)
+    : undefined);
   const [progressRepository] = useState(() => createPuzzleProgressRepository({
     getItem: (key) => window.localStorage.getItem(key),
     setItem: (key, value) => window.localStorage.setItem(key, value),
@@ -321,6 +332,7 @@ export function PuzzleGame() {
   const [selectedTier, setSelectedTier] = useState<DifficultyTierId>('medium');
   const [started, setStarted] = useState(false);
   const [release, setRelease] = useState<DailyPuzzleRelease | null>(null);
+  const [releaseSource, setReleaseSource] = useState<'network' | 'cache'>('network');
   const [restoredProgress, setRestoredProgress] = useState<SavedPuzzleProgressV1 | null>(null);
   const [loadingError, setLoadingError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -332,27 +344,29 @@ export function PuzzleGame() {
     if (response.status === 404) return null;
     if (!response.ok) throw new Error('Puzzle request failed.');
     const payload: unknown = await response.json();
-    if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) throw new Error('Invalid release.');
-    const value = payload as Record<string, unknown>;
-    const puzzle = parsePuzzleCandidate(value.puzzle);
-    if (!puzzle || value.puzzleId !== puzzle.id || typeof value.releaseDate !== 'string'
-      || value.generatorVersion !== 1 || !validatePuzzleCandidate(puzzle).valid) throw new Error('Invalid release.');
-    return {
-      puzzleId: value.puzzleId,
-      releaseDate: value.releaseDate,
-      generatorVersion: value.generatorVersion,
-      puzzle,
-    };
+    const release = parseDailyPuzzleRelease(payload);
+    if (!release) throw new Error('Invalid release.');
+    return release;
   }, []);
+
+  const fetchToday = useCallback((signal: AbortSignal) => createDailyPuzzleReleaseLoader({
+    fetcher: (input, init) => fetch(input, init),
+    cache: dailyPuzzleCache,
+  })(signal), [dailyPuzzleCache]);
 
   const loadPuzzle = useCallback(async (signal: AbortSignal) => {
     const saved = progressRepository.load();
+    let dailyLoad: Awaited<ReturnType<typeof fetchToday>> = null;
     if (saved) {
       let savedRelease: DailyPuzzleRelease | null = null;
       try {
         savedRelease = await fetchRelease(`/api/puzzles/${encodeURIComponent(saved.puzzleId)}`, signal);
       } catch (error) {
         if (signal.aborted) throw error;
+      }
+      if (!savedRelease) {
+        dailyLoad = await fetchToday(signal);
+        if (dailyLoad?.release.puzzleId === saved.puzzleId) savedRelease = dailyLoad.release;
       }
       if (savedRelease?.puzzleId === saved.puzzleId) {
         const savedTier = getDifficultyTierConfig(saved.tierId);
@@ -361,20 +375,27 @@ export function PuzzleGame() {
           sameAppearance,
           attemptLimit: savedRelease.puzzle.attemptLimits[savedTier.id],
         });
-        if (savedEngine.restore(saved)) return { release: savedRelease, restoredProgress: saved };
+        if (savedEngine.restore(saved)) {
+          return {
+            release: savedRelease,
+            restoredProgress: saved,
+            source: dailyLoad?.release.puzzleId === saved.puzzleId ? dailyLoad.source : 'network' as const,
+          };
+        }
       }
       progressRepository.clear();
     }
 
-    const dailyRelease = await fetchRelease('/api/puzzles/today', signal);
-    if (!dailyRelease) throw new Error('Daily puzzle is unavailable.');
-    return { release: dailyRelease, restoredProgress: null };
-  }, [fetchRelease, progressRepository]);
+    dailyLoad ??= await fetchToday(signal);
+    if (!dailyLoad) throw new Error('Daily puzzle is unavailable.');
+    return { release: dailyLoad.release, restoredProgress: null, source: dailyLoad.source };
+  }, [fetchRelease, fetchToday, progressRepository]);
 
   useEffect(() => {
     const controller = new AbortController();
     void loadPuzzle(controller.signal).then((loaded) => {
       setRelease(loaded.release);
+      setReleaseSource(loaded.source);
       setRestoredProgress(loaded.restoredProgress);
       setLoadingError(false);
     }).catch(() => {
@@ -400,6 +421,7 @@ export function PuzzleGame() {
       tier={restoredTier}
       release={release}
       restoredProgress={restoredProgress}
+      cachedCopy={releaseSource === 'cache'}
       progressRepository={progressRepository}
     />;
   }
@@ -409,12 +431,14 @@ export function PuzzleGame() {
       tier={tier}
       release={release}
       restoredProgress={null}
+      cachedCopy={releaseSource === 'cache'}
       progressRepository={progressRepository}
     />
     : <ModeSelection
       selectedTier={selectedTier}
       puzzle={release.puzzle}
       releaseDate={release.releaseDate}
+      cachedCopy={releaseSource === 'cache'}
       onSelect={setSelectedTier}
       onStart={() => setStarted(true)}
     />;
