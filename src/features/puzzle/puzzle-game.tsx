@@ -12,6 +12,7 @@ import {
   parseDailyPuzzleRelease,
 } from './daily-puzzle-release-cache';
 import { sameAppearance } from './tile-appearance';
+import { buildResultShareText } from './result-sharing';
 import {
   createActiveSolveTimer,
   formatActiveSolveTime,
@@ -140,9 +141,11 @@ function PuzzleRound({
   const checkpointState = useRef(state);
   const timer = useRef(createActiveSolveTimer());
   const [activeElapsedMilliseconds, setActiveElapsedMilliseconds] = useState<number | null>(null);
+  const [shareFeedback, setShareFeedback] = useState('');
   const won = state.status === 'won';
   const lost = state.status === 'lost';
   const terminal = won || lost;
+  const nativeSharingAvailable = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   const attemptsRemaining = state.attemptLimit - state.attemptsUsed;
   const selected = state.selectedPosition;
   const message = won
@@ -155,6 +158,37 @@ function PuzzleRound({
   const hintMessage = state.hintedPositions === null
     ? null
     : `Hint: Swap ${describePosition(state.hintedPositions[0])} with ${describePosition(state.hintedPositions[1])} to move closer to the target.`;
+
+  const shareResult = async () => {
+    const text = buildResultShareText({
+      releaseDate: release.releaseDate,
+      mode: tier.label,
+      status: won ? 'won' : 'lost',
+      attemptsUsed: state.attemptsUsed,
+      attemptLimit: state.attemptLimit,
+      hintUsed: state.hintUsed,
+    });
+
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: 'Daily Tile-Swap Puzzle', text });
+        setShareFeedback('Share sheet opened.');
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          setShareFeedback('Sharing canceled.');
+          return;
+        }
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareFeedback('Result copied to clipboard.');
+    } catch {
+      setShareFeedback('Could not copy result. Please try again.');
+    }
+  };
 
   const saveProgress = useCallback((nextState: typeof state, now: number) => {
     progressRepository.save({
@@ -277,6 +311,12 @@ function PuzzleRound({
                 <span>Active time: {formatActiveSolveTime(activeElapsedMilliseconds ?? 0)}</span>
                 <span>{state.hintUsed ? 'Assisted (hint used)' : 'Unassisted'}</span>
                 <span className="result-motif">Motif: {puzzle.motifDescription}</span>
+                <div className="result-share">
+                  <button className="result-share-button" type="button" onClick={() => void shareResult()}>
+                    {nativeSharingAvailable ? 'Share result' : 'Copy result'}
+                  </button>
+                  <span className="result-share-feedback" aria-live="polite" aria-atomic="true">{shareFeedback}</span>
+                </div>
               </div>
             )}
             <div className={`game-feedback${won ? ' complete-feedback' : ''}${lost ? ' failed-feedback' : ''}`}>

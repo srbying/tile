@@ -17,6 +17,13 @@ const solution = [
   [2, 2, 3, 5], [2, 3, 6, 4], [2, 5, 4, 6], [2, 6, 5, 4], [3, 2, 6, 5],
 ] as const;
 
+const solvePuzzle = async (page: Page) => {
+  for (const [r1, c1, r2, c2] of solution) {
+    await cell(page, r1, c1).click();
+    await cell(page, r2, c2).click();
+  }
+};
+
 test.beforeEach(async ({ page }) => {
   const puzzle = { schemaVersion: 1, ...samplePuzzle, attemptLimits: { easy: 15, medium: 13, hard: 10 } };
   const release = { puzzleId: puzzle.id, releaseDate: '2026-09-29', generatorVersion: 1, puzzle };
@@ -177,6 +184,98 @@ test('uses one productive hint without consuming a swap and marks the result ass
   await expect(page.locator('.round-result')).toContainText('Assisted (hint used)');
   await expect(page.locator('.round-result')).toContainText(/Active time: \d+:\d{2}/);
   await expect(page.locator('.round-result')).toContainText('Greek-key border around four inset diamonds.');
+});
+
+test('shares only spoiler-safe result text through the native share sheet', async ({ page }) => {
+  await page.addInitScript(() => {
+    const testWindow = window as unknown as { __shareCalls: ShareData[] };
+    testWindow.__shareCalls = [];
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: async (data: ShareData) => { testWindow.__shareCalls.push(data); },
+    });
+  });
+  await page.reload();
+  await startGame(page);
+  await expect(page.getByRole('button', { name: /result/i })).toHaveCount(0);
+  await solvePuzzle(page);
+
+  await page.getByRole('button', { name: 'Share result', exact: true }).click();
+
+  await expect(page.locator('.result-share-feedback')).toHaveText('Share sheet opened.');
+  const shareCalls = await page.evaluate(() => (window as unknown as { __shareCalls: ShareData[] }).__shareCalls);
+  expect(shareCalls).toEqual([{
+    title: 'Daily Tile-Swap Puzzle',
+    text: 'Daily Tile-Swap Puzzle · 2026-09-29\nSolved · Medium mode · 10/13 swaps · Unassisted',
+  }]);
+});
+
+test('copies a loss result when native sharing is unavailable and announces completion', async ({ page }) => {
+  await page.addInitScript(() => {
+    const testWindow = window as unknown as { __copiedText?: string };
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async (text: string) => { testWindow.__copiedText = text; } },
+    });
+  });
+  await page.reload();
+  await startGame(page, 'Hard');
+  for (let attempt = 0; attempt < 10; attempt++) {
+    await cell(page, 1, 1).click();
+    await cell(page, 1, 2).click();
+  }
+
+  await page.getByRole('button', { name: 'Copy result', exact: true }).click();
+
+  await expect(page.locator('.result-share-feedback')).toHaveAttribute('aria-live', 'polite');
+  await expect(page.locator('.result-share-feedback')).toHaveText('Result copied to clipboard.');
+  expect(await page.evaluate(() => (window as unknown as { __copiedText?: string }).__copiedText))
+    .toBe('Daily Tile-Swap Puzzle · 2026-09-29\nNot solved · Hard mode · 10/10 swaps · Unassisted');
+});
+
+test('announces when copying a result fails', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async () => { throw new Error('Clipboard access denied.'); } },
+    });
+  });
+  await page.reload();
+  await startGame(page, 'Hard');
+  for (let attempt = 0; attempt < 10; attempt++) {
+    await cell(page, 1, 1).click();
+    await cell(page, 1, 2).click();
+  }
+
+  await page.getByRole('button', { name: 'Copy result', exact: true }).click();
+
+  await expect(page.locator('.result-share-feedback')).toHaveAttribute('aria-live', 'polite');
+  await expect(page.locator('.result-share-feedback')).toHaveText('Could not copy result. Please try again.');
+});
+
+test('does not copy when the player cancels native sharing', async ({ page }) => {
+  await page.addInitScript(() => {
+    const testWindow = window as unknown as { __copyCalls: number };
+    testWindow.__copyCalls = 0;
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: async () => { throw new DOMException('Share canceled.', 'AbortError'); },
+    });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async () => { testWindow.__copyCalls++; } },
+    });
+  });
+  await page.reload();
+  await startGame(page);
+  await solvePuzzle(page);
+
+  await page.getByRole('button', { name: 'Share result', exact: true }).click();
+
+  await expect(page.locator('.result-share-feedback')).toHaveText('Sharing canceled.');
+  expect(await page.evaluate(() => (window as unknown as { __copyCalls: number }).__copyCalls)).toBe(0);
 });
 
 for (const input of ['pointer', 'keyboard'] as const) {
