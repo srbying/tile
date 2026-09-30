@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import react from '@vitejs/plugin-react';
-import { createDailyPuzzleApi } from './src/features/puzzle/daily-puzzle-api';
+import { createDailyPuzzleApi } from './src/features/puzzle/daily-puzzle-api.js';
 import { defineConfig } from 'vitest/config';
 
 const puzzleApi = createDailyPuzzleApi();

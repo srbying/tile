@@ -1,7 +1,7 @@
-import { createDailyPuzzleApi } from '../../src/features/puzzle/daily-puzzle-api';
+import { createDailyPuzzleApi } from '../../src/features/puzzle/daily-puzzle-api.js';
 
 const api = createDailyPuzzleApi();
 
-export default function handler(request: Request): Promise<Response> {
+export function GET(request: Request): Promise<Response> {
   return api.today(request);
 }

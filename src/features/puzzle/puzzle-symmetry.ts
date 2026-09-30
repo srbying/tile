@@ -1,5 +1,5 @@
-import { visualKey } from './tile-appearance';
-import type { QuarterTurn, TileAppearance } from './puzzle.types';
+import { visualKey } from './tile-appearance.js';
+import type { QuarterTurn, TileAppearance } from './puzzle.types.js';
 
 export type BoardReflection = 'none' | 'horizontal';
 

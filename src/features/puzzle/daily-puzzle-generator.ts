@@ -1,9 +1,9 @@
-import { buildDifficultyPuzzle, difficultyTierConfigs } from './difficulty-preview';
-import { validatePuzzleCandidate } from './puzzle-candidate';
-import { samplePuzzle } from './sample-puzzle';
-import { canonicalBoardTargetKey, hasRecentVisualDuplicate } from './puzzle-symmetry';
-import { sameAppearance } from './tile-appearance';
-import type { DailyPuzzleRelease, DifficultyTierId, PuzzleCandidate, TileAppearance } from './puzzle.types';
+import { buildDifficultyPuzzle, difficultyTierConfigs } from './difficulty-preview.js';
+import { validatePuzzleCandidate } from './puzzle-candidate.js';
+import { samplePuzzle } from './sample-puzzle.js';
+import { canonicalBoardTargetKey, hasRecentVisualDuplicate } from './puzzle-symmetry.js';
+import { sameAppearance } from './tile-appearance.js';
+import type { DailyPuzzleRelease, DifficultyTierId, PuzzleCandidate, TileAppearance } from './puzzle.types.js';
 
 export const dailyPuzzleGeneratorVersion = 1;
 export const dailyPuzzleTargetCycleLength = 67;

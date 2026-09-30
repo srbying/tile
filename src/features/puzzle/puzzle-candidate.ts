@@ -1,9 +1,9 @@
-import { buildDifficultyPuzzle, difficultyTierConfigs } from './difficulty-preview';
-import { findProductiveHint } from './puzzle-hint';
-import { minimumVisibleSwaps } from './puzzle-solver';
-import { hasRecentVisualDuplicate } from './puzzle-symmetry';
-import { sameAppearance, visibleAppearance } from './tile-appearance';
-import type { DifficultyTierId, PuzzleCandidate, PuzzleHintPositions, TileAppearance } from './puzzle.types';
+import { buildDifficultyPuzzle, difficultyTierConfigs } from './difficulty-preview.js';
+import { findProductiveHint } from './puzzle-hint.js';
+import { minimumVisibleSwaps } from './puzzle-solver.js';
+import { hasRecentVisualDuplicate } from './puzzle-symmetry.js';
+import { sameAppearance, visibleAppearance } from './tile-appearance.js';
+import type { DifficultyTierId, PuzzleCandidate, PuzzleHintPositions, TileAppearance } from './puzzle.types.js';
 
 export type PuzzleValidationCode =
   | 'invalid-candidate'

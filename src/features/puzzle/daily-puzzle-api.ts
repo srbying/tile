@@ -1,5 +1,5 @@
-import { dailyPuzzleFromId, getDailyPuzzleForNow } from './daily-puzzle-generator';
-import type { DailyPuzzleRelease } from './puzzle.types';
+import { dailyPuzzleFromId, getDailyPuzzleForNow } from './daily-puzzle-generator.js';
+import type { DailyPuzzleRelease } from './puzzle.types.js';
 
 export interface DailyPuzzleApiDependencies {
   readonly now?: () => Date;

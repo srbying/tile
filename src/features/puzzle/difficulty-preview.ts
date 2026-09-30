@@ -1,5 +1,5 @@
-import type { DifficultyTierId, PuzzleDefinition, TileAppearance, TileColor } from './puzzle.types';
-export type { DifficultyTierId } from './puzzle.types';
+import type { DifficultyTierId, PuzzleDefinition, TileAppearance, TileColor } from './puzzle.types.js';
+export type { DifficultyTierId } from './puzzle.types.js';
 
 type AttributePolicy<Value> =
   | { readonly mode: 'preserve' }

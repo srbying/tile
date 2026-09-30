@@ -1,4 +1,4 @@
-import type { SameAppearance, TileAppearance } from './puzzle.types';
+import type { SameAppearance, TileAppearance } from './puzzle.types.js';
 
 /** Return exact minimum whole-tile swaps, using visible equivalence; null means inventories differ. */
 export function minimumVisibleSwaps(

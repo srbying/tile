@@ -1,4 +1,4 @@
-import type { Motif, TileAppearance } from './puzzle.types';
+import type { Motif, TileAppearance } from './puzzle.types.js';
 
 type Point = readonly [number, number];
 type Stroke = readonly Point[];

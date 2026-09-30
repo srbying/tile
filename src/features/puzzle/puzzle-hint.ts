@@ -1,4 +1,4 @@
-import type { SameAppearance, TileAppearance } from './puzzle.types';
+import type { SameAppearance, TileAppearance } from './puzzle.types.js';
 
 export type HintPositions = readonly [number, number];
 
