@@ -5,6 +5,10 @@ import { DifficultyPreviewPage } from './features/puzzle/difficulty-preview-page
 import { PuzzleAuthoringPage } from './features/puzzle/puzzle-authoring-page';
 import './styles.css';
 
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  void navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => undefined);
+}
+
 const page = window.location.pathname === '/preview'
   ? <DifficultyPreviewPage />
   : window.location.pathname === '/author' ? <PuzzleAuthoringPage /> : <PuzzleGame />;

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+test.use({ serviceWorkers: 'allow' });
+
 test('serves a stable generated daily puzzle and starts gameplay with it', async ({ page }) => {
   const todayResponse = await page.request.get('/api/puzzles/today');
   expect(todayResponse.status()).toBe(200);
@@ -34,4 +36,55 @@ test('serves a stable generated daily puzzle and starts gameplay with it', async
   await page.getByRole('button', { name: 'Start puzzle' }).click();
   await expect(page.getByRole('list', { name: 'Target arrangement' }).getByRole('listitem')).toHaveCount(36);
   await expect(page.getByRole('group', { name: 'Your mosaic' }).getByRole('button')).toHaveCount(36);
+});
+
+test('keeps the app and current puzzle playable after going offline', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Playwright service-worker offline interception is supported in Chromium only.');
+  const todayResponse = await page.request.get('/api/puzzles/today');
+  const release = await todayResponse.json() as { releaseDate: string };
+
+  await page.goto('/');
+  await expect(page.getByText(`DAILY Nº ${release.releaseDate}`)).toBeVisible();
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
+
+  await context.setOffline(true);
+  await page.reload();
+
+  await expect(page.getByRole('heading', { name: 'Choose your mode' })).toBeVisible();
+  await expect(page.getByText(`DAILY Nº ${release.releaseDate}`)).toBeVisible();
+  await expect(page.getByText(`Cached copy · ${release.releaseDate}`, { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
+  const board = page.getByRole('group', { name: 'Your mosaic' }).getByRole('button');
+  await board.nth(0).click();
+  await board.nth(1).click();
+  await expect(page.getByText('12 of 13 swaps remaining', { exact: true })).toBeVisible();
+});
+
+test('restores current-release progress from the cached puzzle while offline', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Playwright service-worker offline interception is supported in Chromium only.');
+  const todayResponse = await page.request.get('/api/puzzles/today');
+  const release = await todayResponse.json() as { puzzleId: string; releaseDate: string };
+
+  await page.goto('/');
+  await expect(page.getByText(`DAILY Nº ${release.releaseDate}`)).toBeVisible();
+  await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
+  const board = page.getByRole('group', { name: 'Your mosaic' }).getByRole('button');
+  await board.nth(0).click();
+  await board.nth(1).click();
+  await expect(page.getByText('12 of 13 swaps remaining', { exact: true })).toBeVisible();
+
+  const savedProgress = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
+  expect(savedProgress.puzzleId).toBe(release.puzzleId);
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
+  await context.setOffline(true);
+  await page.reload();
+
+  await expect(page.getByText('12 of 13 swaps remaining', { exact: true })).toBeVisible();
+  await expect(page.getByText(`Cached copy · ${release.releaseDate}`, { exact: true })).toBeVisible();
+  const resumedBoard = page.getByRole('group', { name: 'Your mosaic' }).getByRole('button');
+  await resumedBoard.nth(2).click();
+  await resumedBoard.nth(3).click();
+  await expect(page.getByText('11 of 13 swaps remaining', { exact: true })).toBeVisible();
 });

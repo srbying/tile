@@ -31,6 +31,7 @@ h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(32px, 4.5v
 .intro-copy { color: var(--muted); margin: 0; font-size: 15px; line-height: 1.6; }
 .puzzle-caption { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 23px; font-family: Georgia, serif; font-size: 16px; font-style: italic; }
 .sample-badge { font-family: 'Avenir Next', Avenir, 'Segoe UI', sans-serif; font-size: 9px; letter-spacing: 1.2px; font-weight: 600; font-style: normal; border: 1px solid #c9c9b6; padding: 6px 9px; border-radius: 3px; }
+.cached-copy-label { color: #87351f; font-family: 'Avenir Next', Avenir, 'Segoe UI', sans-serif; font-size: 9px; font-style: normal; font-weight: 600; letter-spacing: .5px; }
 .game-layout { max-width: 832px; margin-inline: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; }
 .board-section { min-width: 0; }
 .board-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }

@@ -33,6 +33,7 @@ The browser suite builds the app and starts a local production preview automatic
 - Tap the selected tile again, press Escape from a tile, or use **Clear selection** to cancel. To change your first tile, cancel before selecting another.
 - Use the one available hint to highlight a productive swap. It does not move tiles or spend an attempt; hinted results are marked assisted.
 - An unfinished round saves locally after swaps and hint use. Reload resumes the same mode, board, attempts, hint state, puzzle ID, and active time. Time while the page is hidden does not count.
+- The app shell and latest validated daily release are cached for offline play. Offline copies show their release date; a successful online load replaces the cached release. Future puzzles are not cached.
 - Use Tab / Shift+Tab to move between tiles in row-major order. Enter and Space select or swap; moving focus alone never changes the board.
 - Every committed swap uses one attempt. Selection and cancellation are free. A correct final swap wins; an incorrect final attempt ends in failure. Both terminal boards remain inspectable and reject further swaps.
 - Active solve timing starts on the first committed swap, pauses while the page is hidden, and stops at win or failure. Results show active time, swaps used and allowed, hint use, and a concise motif explanation.
