@@ -3,7 +3,10 @@ import { buildDifficultyPuzzle, difficultyTierConfigs, getDifficultyTierConfig }
 import type { DifficultyTierId, DifficultyTierConfig } from './difficulty-preview';
 import { createPuzzleEngine } from './puzzle-engine';
 import { PuzzleBoard, TargetBoard, describePosition } from './puzzle-board';
-import { samplePuzzle } from './sample-puzzle';
+import { parsePuzzleCandidate, validatePuzzleCandidate } from './puzzle-candidate';
+import { createPuzzleProgressRepository } from './puzzle-progress';
+import type { PuzzleProgressRepository } from './puzzle-progress';
+import type { DailyPuzzleRelease, SavedPuzzleProgressV1 } from './puzzle.types';
 import { sameAppearance } from './tile-appearance';
 import {
   createActiveSolveTimer,
@@ -14,9 +17,6 @@ import {
   startActiveSolveTimer,
   stopActiveSolveTimer,
 } from './active-solve-timer';
-import { createPuzzleProgressRepository, resolvePuzzleForProgress } from './puzzle-progress';
-import type { PuzzleProgressRepository } from './puzzle-progress';
-import type { PuzzleDefinition, SavedPuzzleProgressV1 } from './puzzle.types';
 
 function MosaicMark() {
   return (
@@ -38,16 +38,20 @@ function GameHeader() {
   );
 }
 
-function GameFooter() {
-  return <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>SAMPLE COLLECTION <span aria-hidden="true">✦</span> 001</span></footer>;
+function GameFooter({ releaseDate }: { readonly releaseDate?: string } = {}) {
+  return <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>{releaseDate ? `DAILY PUZZLE · ${releaseDate}` : 'SAMPLE COLLECTION'} <span aria-hidden="true">✦</span></span><a href="/author">Offline authoring</a></footer>;
 }
 
 function ModeSelection({
   selectedTier,
+  puzzle,
+  releaseDate,
   onSelect,
   onStart,
 }: {
   readonly selectedTier: DifficultyTierId;
+  readonly puzzle: DailyPuzzleRelease['puzzle'];
+  readonly releaseDate: string;
   readonly onSelect: (tier: DifficultyTierId) => void;
   readonly onStart: () => void;
 }) {
@@ -58,8 +62,8 @@ function ModeSelection({
         <section className="intro mode-intro" aria-labelledby="game-title">
           <div className="eyebrow"><span className="small-rule" /> AN EVERYDAY MOSAIC</div>
           <h1 id="game-title">Daily Tile-Swap Puzzle<span className="title-dot">.</span></h1>
-          <p className="intro-copy">Choose a challenge. Same courtyard, same tile placement.</p>
-          <div className="puzzle-caption"><span className="sample-badge">SAMPLE Nº 01</span><span>{samplePuzzle.title}</span></div>
+          <p className="intro-copy">Choose a challenge. Same daily mosaic, same tile placement.</p>
+          <div className="puzzle-caption"><span className="sample-badge">DAILY Nº {releaseDate}</span><span>{puzzle.title}</span></div>
         </section>
 
         <section className="mode-selection" aria-labelledby="mode-heading">
@@ -88,7 +92,7 @@ function ModeSelection({
                 <span className="mode-option-copy">
                   <span className="mode-option-heading">
                     <span className="mode-option-title" id={`difficulty-${tier.id}-label`}>{tier.label}</span>
-                    <span className="mode-option-budget" id={`difficulty-${tier.id}-budget`}>{tier.attemptLimit} swaps</span>
+                    <span className="mode-option-budget" id={`difficulty-${tier.id}-budget`}>{puzzle.attemptLimits[tier.id]} swaps</span>
                   </span>
                   <span className="mode-option-description" id={`difficulty-${tier.id}-details`}>{tier.description}</span>
                 </span>
@@ -98,26 +102,27 @@ function ModeSelection({
           <button className="start-puzzle" type="button" onClick={onStart}>Start puzzle</button>
         </section>
       </main>
-      <GameFooter />
+      <GameFooter releaseDate={releaseDate} />
     </div>
   );
 }
 
 function PuzzleRound({
-  basePuzzle,
   tier,
+  release,
   restoredProgress,
   progressRepository,
 }: {
-  readonly basePuzzle: PuzzleDefinition;
   readonly tier: DifficultyTierConfig;
+  readonly release: DailyPuzzleRelease;
   readonly restoredProgress: SavedPuzzleProgressV1 | null;
   readonly progressRepository: PuzzleProgressRepository;
 }) {
-  const puzzle = useMemo(() => buildDifficultyPuzzle(basePuzzle, tier.id), [basePuzzle, tier.id]);
+  const puzzle = useMemo(() => buildDifficultyPuzzle(release.puzzle, tier.id), [release.puzzle, tier.id]);
+  const attemptLimit = release.puzzle.attemptLimits[tier.id];
   const engine = useMemo(
-    () => createPuzzleEngine(puzzle, { sameAppearance, attemptLimit: tier.attemptLimit }),
-    [puzzle, tier.attemptLimit],
+    () => createPuzzleEngine(puzzle, { sameAppearance, attemptLimit }),
+    [puzzle, attemptLimit],
   );
   const [state, dispatch] = useReducer(
     engine.reduce,
@@ -146,7 +151,7 @@ function PuzzleRound({
   const saveProgress = useCallback((nextState: typeof state, now: number) => {
     progressRepository.save({
       version: 1,
-      puzzleId: basePuzzle.id,
+      puzzleId: release.puzzleId,
       tierId: tier.id,
       board: nextState.board,
       attemptsUsed: nextState.attemptsUsed,
@@ -154,7 +159,7 @@ function PuzzleRound({
       hintedPositions: nextState.hintedPositions,
       elapsedMilliseconds: getActiveSolveMilliseconds(timer.current, now),
     });
-  }, [basePuzzle.id, tier.id, progressRepository]);
+  }, [progressRepository, release.puzzleId, tier.id]);
 
   useEffect(() => {
     if (!restoredProgress) return;
@@ -231,7 +236,7 @@ function PuzzleRound({
           <div className="eyebrow"><span className="small-rule" /> AN EVERYDAY MOSAIC</div>
           <h1 id="game-title">Daily Tile-Swap Puzzle<span className="title-dot">.</span></h1>
           <p id="game-instruction" className="intro-copy">Match the target. Tap two tiles to swap them.</p>
-          <div className="puzzle-caption"><span className="sample-badge">SAMPLE Nº 01</span><span>{basePuzzle.title}</span><span className="mode-badge">{tier.label} mode</span></div>
+          <div className="puzzle-caption"><span className="sample-badge">DAILY Nº {release.releaseDate}</span><span>{release.puzzle.title}</span><span className="mode-badge">{tier.label} mode</span></div>
         </section>
 
         <div className="game-layout">
@@ -286,8 +291,24 @@ function PuzzleRound({
         </aside>
         <p className="keyboard-note" id="keyboard-instruction">Keyboard: Tab to a tile, then Enter or Space to select and swap. Escape clears selection.<br />Tap a selected tile again to cancel. Each swap uses one attempt.</p>
       </main>
-      <GameFooter />
+      <GameFooter releaseDate={release.releaseDate} />
     </div>
+  );
+}
+
+function LoadingPuzzle() {
+  return <main id="main" className="page-shell"><output className="daily-load-message">Preparing today’s mosaic…</output></main>;
+}
+
+function PuzzleLoadError({ onRetry }: { readonly onRetry: () => void }) {
+  return (
+    <main id="main" className="page-shell">
+      <section className="daily-load-message" aria-labelledby="daily-error-heading">
+        <h1 id="daily-error-heading">Today’s puzzle is unavailable</h1>
+        <p>Daily puzzle generation could not be verified. Try again shortly.</p>
+        <button className="start-puzzle" type="button" onClick={onRetry}>Retry puzzle load</button>
+      </section>
+    </main>
   );
 }
 
@@ -297,39 +318,99 @@ export function PuzzleGame() {
     setItem: (key, value) => window.localStorage.setItem(key, value),
     removeItem: (key) => window.localStorage.removeItem(key),
   }));
-  const [restoredRound] = useState(() => {
-    const saved = progressRepository.load();
-    if (!saved) return null;
-    const puzzleCatalog = new Map<string, PuzzleDefinition>([[samplePuzzle.id, samplePuzzle]]);
-    const basePuzzle = resolvePuzzleForProgress(saved, samplePuzzle, (id) => puzzleCatalog.get(id));
-    if (basePuzzle.id !== saved.puzzleId) return null;
-    const tier = getDifficultyTierConfig(saved.tierId);
-    const puzzle = buildDifficultyPuzzle(basePuzzle, tier.id);
-    const engine = createPuzzleEngine(puzzle, { sameAppearance, attemptLimit: tier.attemptLimit });
-    if (!engine.restore(saved)) return null;
-    return { basePuzzle, tier, progress: saved };
-  });
   const [selectedTier, setSelectedTier] = useState<DifficultyTierId>('medium');
   const [started, setStarted] = useState(false);
+  const [release, setRelease] = useState<DailyPuzzleRelease | null>(null);
+  const [restoredProgress, setRestoredProgress] = useState<SavedPuzzleProgressV1 | null>(null);
+  const [loadingError, setLoadingError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const tier = getDifficultyTierConfig(selectedTier);
 
-  if (restoredRound) {
+  const fetchRelease = useCallback(async (path: string, signal: AbortSignal): Promise<DailyPuzzleRelease | null> => {
+    const response = await fetch(path, { cache: 'no-store', signal });
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error('Puzzle request failed.');
+    const payload: unknown = await response.json();
+    if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) throw new Error('Invalid release.');
+    const value = payload as Record<string, unknown>;
+    const puzzle = parsePuzzleCandidate(value.puzzle);
+    if (!puzzle || value.puzzleId !== puzzle.id || typeof value.releaseDate !== 'string'
+      || value.generatorVersion !== 1 || !validatePuzzleCandidate(puzzle).valid) throw new Error('Invalid release.');
+    return {
+      puzzleId: value.puzzleId,
+      releaseDate: value.releaseDate,
+      generatorVersion: value.generatorVersion,
+      puzzle,
+    };
+  }, []);
+
+  const loadPuzzle = useCallback(async (signal: AbortSignal) => {
+    const saved = progressRepository.load();
+    if (saved) {
+      const savedRelease = await fetchRelease(`/api/puzzles/${encodeURIComponent(saved.puzzleId)}`, signal);
+      if (savedRelease?.puzzleId === saved.puzzleId) {
+        const savedTier = getDifficultyTierConfig(saved.tierId);
+        const savedPuzzle = buildDifficultyPuzzle(savedRelease.puzzle, savedTier.id);
+        const savedEngine = createPuzzleEngine(savedPuzzle, {
+          sameAppearance,
+          attemptLimit: savedRelease.puzzle.attemptLimits[savedTier.id],
+        });
+        if (savedEngine.restore(saved)) return { release: savedRelease, restoredProgress: saved };
+      }
+      progressRepository.clear();
+    }
+
+    const dailyRelease = await fetchRelease('/api/puzzles/today', signal);
+    if (!dailyRelease) throw new Error('Daily puzzle is unavailable.');
+    return { release: dailyRelease, restoredProgress: null };
+  }, [fetchRelease, progressRepository]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadPuzzle(controller.signal).then((loaded) => {
+      setRelease(loaded.release);
+      setRestoredProgress(loaded.restoredProgress);
+      setLoadingError(false);
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setRelease(null);
+        setLoadingError(true);
+      }
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false);
+    });
+    return () => controller.abort();
+  }, [loadPuzzle, loadAttempt]);
+  if (loading) return <LoadingPuzzle />;
+  if (loadingError || !release) return <PuzzleLoadError onRetry={() => {
+    setLoading(true);
+    setLoadingError(false);
+    setLoadAttempt((attempt) => attempt + 1);
+  }} />;
+  if (restoredProgress) {
+    const restoredTier = getDifficultyTierConfig(restoredProgress.tierId);
     return <PuzzleRound
-      key={`${restoredRound.basePuzzle.id}-${restoredRound.tier.id}`}
-      basePuzzle={restoredRound.basePuzzle}
-      tier={restoredRound.tier}
-      restoredProgress={restoredRound.progress}
+      key={`${release.puzzleId}-${restoredTier.id}`}
+      tier={restoredTier}
+      release={release}
+      restoredProgress={restoredProgress}
       progressRepository={progressRepository}
     />;
   }
-
   return started
     ? <PuzzleRound
-      key={`${samplePuzzle.id}-${selectedTier}`}
-      basePuzzle={samplePuzzle}
+      key={`${release.puzzleId}-${selectedTier}`}
       tier={tier}
+      release={release}
       restoredProgress={null}
       progressRepository={progressRepository}
     />
-    : <ModeSelection selectedTier={selectedTier} onSelect={setSelectedTier} onStart={() => setStarted(true)} />;
+    : <ModeSelection
+      selectedTier={selectedTier}
+      puzzle={release.puzzle}
+      releaseDate={release.releaseDate}
+      onSelect={setSelectedTier}
+      onStart={() => setStarted(true)}
+    />;
 }

@@ -160,3 +160,32 @@ h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(32px, 4.5v
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
+
+.authoring-editor, .authoring-previews { max-width: 900px; margin: 0 auto 36px; }
+.authoring-heading, .authoring-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.authoring-heading h2, .authoring-preview-title h2 { margin: 0; font-family: Georgia, serif; font-size: 23px; font-weight: 400; }
+.authoring-file-label, .authoring-export { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 13px; border: 1px solid #8e9984; border-radius: 4px; background: #fffdf5; color: #183f37; font-size: 12px; cursor: pointer; }
+.authoring-file-label input { max-width: 210px; font-size: 11px; }
+.authoring-editor textarea { display: block; width: 100%; min-height: 230px; margin-top: 12px; padding: 12px; border: 1px solid #aeb4a1; border-radius: 4px; background: #fffdf5; color: #263f38; font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.authoring-editor textarea:focus-visible, .authoring-file-label:focus-within { outline: 3px dashed #102f29; outline-offset: 3px; }
+.authoring-actions { justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+.authoring-actions .start-puzzle { width: auto; min-width: 190px; margin: 0; }
+.authoring-export:disabled { opacity: .55; cursor: default; }
+.authoring-success, .authoring-error { padding: 12px 14px; border-radius: 4px; font-size: 12px; line-height: 1.6; }
+.authoring-success { border: 1px solid #91ae94; background: #e7eee3; color: #183f37; }
+.authoring-error { border: 1px solid #bb8476; background: #f8e7e0; color: #742e22; }
+.authoring-error ul { margin: 7px 0 0; padding-left: 20px; }
+.authoring-tier-results { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 18px; padding: 0; list-style: none; color: var(--muted); font-size: 11px; }
+.authoring-preview-title { padding-bottom: 15px; text-align: center; }
+.authoring-preview-title p { margin: 6px 0 0; color: var(--muted); font: italic 13px Georgia, serif; }
+.author-grid { margin-bottom: 0; }
+.daily-load-message { max-width: 640px; margin: 18vh auto; color: var(--muted); text-align: center; }
+.daily-load-message h1 { color: var(--ink); font-family: Georgia, serif; font-weight: 400; }
+.site-footer a { color: var(--teal); font-size: 10px; text-underline-offset: 3px; }
+.site-links { display: flex; align-items: center; gap: 12px; }
+
+@media (max-width: 760px) {
+  .authoring-heading { align-items: flex-start; flex-direction: column; }
+  .authoring-actions .start-puzzle { width: 100%; }
+  .authoring-file-label { max-width: 100%; flex-wrap: wrap; }
+}

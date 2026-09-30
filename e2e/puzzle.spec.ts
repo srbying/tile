@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { samplePuzzle } from '../src/features/puzzle/sample-puzzle';
 
 const board = (page: Page) => page.getByRole('group', { name: 'Your mosaic', exact: true });
 const cell = (page: Page, row: number, column: number) =>
@@ -17,6 +18,18 @@ const solution = [
 ] as const;
 
 test.beforeEach(async ({ page }) => {
+  const puzzle = { schemaVersion: 1, ...samplePuzzle, attemptLimits: { easy: 15, medium: 13, hard: 10 } };
+  const release = { puzzleId: puzzle.id, releaseDate: '2026-09-29', generatorVersion: 1, puzzle };
+  await page.route('**/api/puzzles/today', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify(release),
+  }));
+  await page.route(`**/api/puzzles/${puzzle.id}`, (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify(release),
+  }));
   await page.goto('/');
 });
 
@@ -265,13 +278,18 @@ test('reload resumes saved mode, board, attempts, hint, and active time', async 
   const savedBeforeReload = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
   expect(savedBeforeReload).toMatchObject({
     version: 1,
-    puzzleId: 'sample-mosaic-01',
     tierId: 'hard',
     attemptsUsed: 1,
     hintUsed: true,
   });
+  expect(savedBeforeReload.puzzleId).toBe(samplePuzzle.id);
 
   await page.waitForTimeout(1_050);
+  const puzzleLookups: string[] = [];
+  page.on('request', (request) => {
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith('/api/puzzles/')) puzzleLookups.push(path);
+  });
   await page.reload();
 
   await expect(page.getByText('Hard mode', { exact: true })).toBeVisible();
@@ -279,6 +297,7 @@ test('reload resumes saved mode, board, attempts, hint, and active time', async 
   await expect(page.getByRole('button', { name: 'Use hint', exact: true })).toBeDisabled();
   await expect(board(page).locator('.is-hinted')).toHaveCount(2);
   expect(await artworks(page)).toEqual(boardBeforeReload);
+  expect(puzzleLookups).toContain(`/api/puzzles/${savedBeforeReload.puzzleId}`);
   const savedAfterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
   expect(savedAfterReload.elapsedMilliseconds).toBeGreaterThanOrEqual(savedBeforeReload.elapsedMilliseconds + 900);
 
