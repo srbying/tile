@@ -56,3 +56,18 @@ export interface PuzzleEngineOptions {
   readonly sameAppearance: SameAppearance;
   readonly attemptLimit: number;
 }
+
+export type PuzzleHintPositions = readonly [number, number];
+
+export interface PuzzleCandidate extends PuzzleDefinition {
+  readonly schemaVersion: 1;
+  readonly attemptLimits: Readonly<Record<DifficultyTierId, number>>;
+  readonly hints?: Readonly<Partial<Record<DifficultyTierId, PuzzleHintPositions>>>;
+}
+
+export interface DailyPuzzleRelease {
+  readonly puzzleId: string;
+  readonly releaseDate: string;
+  readonly generatorVersion: number;
+  readonly puzzle: PuzzleCandidate;
+}

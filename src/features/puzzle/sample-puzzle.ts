@@ -1,4 +1,4 @@
-import type { PuzzleDefinition, QuarterTurn, TileAppearance, TileColor } from './puzzle.types';
+import type { PuzzleDefinition, QuarterTurn, TileAppearance, TileColor } from './puzzle.types.js';
 
 const key = (orientation: QuarterTurn, mirrored = false): TileAppearance => ({
   motif: 'meander', color: 'teal', strokeWeight: 7, orientation, inverted: false, mirrored,
