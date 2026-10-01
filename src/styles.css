@@ -47,7 +47,7 @@ h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(32px, 4.5v
 @media (hover: hover) { .tile-button:not([aria-disabled='true']):hover { box-shadow: 0 0 0 2px var(--teal); z-index: 1; } }
 .tile-button.is-selected { outline: 3px solid var(--teal); outline-offset: -2px; z-index: 2; }
 .tile-button.is-hinted { outline: 3px dashed var(--terracotta); outline-offset: -5px; z-index: 2; }
-.tile-button:focus-visible { outline: 3px dashed #102f29; outline-offset: 2px; z-index: 3; }
+.tile-button:focus-visible { outline: 3px dashed #102f29; outline-offset: 2px; box-shadow: 0 0 0 5px #fff9eb; z-index: 3; }
 .hint-mark { position: absolute; left: 2px; top: 2px; z-index: 4; width: 17px; height: 17px; border-radius: 50%; display: grid; place-items: center; color: white; background: #87351f; border: 1px solid #fff9eb; font-size: 10px; font-weight: 700; line-height: 1; pointer-events: none; }
 .selection-mark { position: absolute; right: -3px; top: -3px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; line-height: 1; background: #183f37; color: white; border: 1px solid #fff9eb; }
 .playable-grid.is-won { background: #c8ddc8; border-color: #23664e; box-shadow: 0 0 0 2px #23664e, 0 5px 0 #e0e5d5; }

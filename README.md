@@ -66,4 +66,4 @@ Unit tests cover immutable transitions, swap accounting, visual equivalence, pro
 
 The browser matrix includes desktop Chromium/WebKit and emulated phones at 375px/320px. Layout tests also check 1280px, at least 44px square playable cells, no horizontal overflow, and reduced-motion settings. Feedback uses outlines, symbols, and text as well as color; SVG art is paired with accessible position/attribute descriptions.
 
-Emulation does not replace physical-device or screen-reader testing. VoiceOver, TalkBack, switch-device evaluation, and first-player usability sessions remain part of [issue #10](https://github.com/srbying/tile/issues/10) and later playtesting.
+Browser emulation does not replace physical-device or assistive-technology testing. Physical iOS and Android VoiceOver, TalkBack, and switch-input checks for [issue #10](https://github.com/srbying/tile/issues/10) are pending; see the [validation report](docs/accessibility-validation.md). First-player usability sessions remain later playtesting.
