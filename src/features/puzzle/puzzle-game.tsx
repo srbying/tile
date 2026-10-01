@@ -6,10 +6,10 @@ import { PuzzleBoard, TargetBoard, describePosition } from './puzzle-board';
 import { createPuzzleProgressRepository } from './puzzle-progress';
 import type { PuzzleProgressRepository } from './puzzle-progress';
 import type { DailyPuzzleRelease, SavedPuzzleProgressV1 } from './puzzle.types';
+import { getNextNewYorkMidnight, getNewYorkPuzzleDate } from './daily-puzzle-generator';
 import {
   createDailyPuzzleReleaseCache,
   createDailyPuzzleReleaseLoader,
-  parseDailyPuzzleRelease,
 } from './daily-puzzle-release-cache';
 import { sameAppearance } from './tile-appearance';
 import { buildResultShareText } from './result-sharing';
@@ -379,57 +379,37 @@ export function PuzzleGame() {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const tier = getDifficultyTierConfig(selectedTier);
 
-  const fetchRelease = useCallback(async (path: string, signal: AbortSignal): Promise<DailyPuzzleRelease | null> => {
-    const response = await fetch(path, { cache: 'no-store', signal });
-    if (response.status === 404) return null;
-    if (!response.ok) throw new Error('Puzzle request failed.');
-    const payload: unknown = await response.json();
-    const release = parseDailyPuzzleRelease(payload);
-    if (!release) throw new Error('Invalid release.');
-    return release;
-  }, []);
-
   const fetchToday = useCallback((signal: AbortSignal) => createDailyPuzzleReleaseLoader({
     fetcher: (input, init) => fetch(input, init),
     cache: dailyPuzzleCache,
   })(signal), [dailyPuzzleCache]);
 
   const loadPuzzle = useCallback(async (signal: AbortSignal) => {
+    const dailyLoad = await fetchToday(signal);
+    if (!dailyLoad) throw new Error('Daily puzzle is unavailable.');
+
     const saved = progressRepository.load();
-    let dailyLoad: Awaited<ReturnType<typeof fetchToday>> = null;
     if (saved) {
-      let savedRelease: DailyPuzzleRelease | null = null;
-      try {
-        savedRelease = await fetchRelease(`/api/puzzles/${encodeURIComponent(saved.puzzleId)}`, signal);
-      } catch (error) {
-        if (signal.aborted) throw error;
-      }
-      if (!savedRelease) {
-        dailyLoad = await fetchToday(signal);
-        if (dailyLoad?.release.puzzleId === saved.puzzleId) savedRelease = dailyLoad.release;
-      }
-      if (savedRelease?.puzzleId === saved.puzzleId) {
+      if (dailyLoad.release.puzzleId === saved.puzzleId) {
         const savedTier = getDifficultyTierConfig(saved.tierId);
-        const savedPuzzle = buildDifficultyPuzzle(savedRelease.puzzle, savedTier.id);
+        const savedPuzzle = buildDifficultyPuzzle(dailyLoad.release.puzzle, savedTier.id);
         const savedEngine = createPuzzleEngine(savedPuzzle, {
           sameAppearance,
-          attemptLimit: savedRelease.puzzle.attemptLimits[savedTier.id],
+          attemptLimit: dailyLoad.release.puzzle.attemptLimits[savedTier.id],
         });
         if (savedEngine.restore(saved)) {
           return {
-            release: savedRelease,
+            release: dailyLoad.release,
             restoredProgress: saved,
-            source: dailyLoad?.release.puzzleId === saved.puzzleId ? dailyLoad.source : 'network' as const,
+            source: dailyLoad.source,
           };
         }
       }
       progressRepository.clear();
     }
 
-    dailyLoad ??= await fetchToday(signal);
-    if (!dailyLoad) throw new Error('Daily puzzle is unavailable.');
     return { release: dailyLoad.release, restoredProgress: null, source: dailyLoad.source };
-  }, [fetchRelease, fetchToday, progressRepository]);
+  }, [fetchToday, progressRepository]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -448,6 +428,52 @@ export function PuzzleGame() {
     });
     return () => controller.abort();
   }, [loadPuzzle, loadAttempt]);
+
+  const pendingReleaseDate = useRef<string | null>(null);
+  useEffect(() => {
+    if (!release) return;
+
+    const refreshForCurrentDate = () => {
+      const currentDate = getNewYorkPuzzleDate(new Date());
+      if (currentDate === release.releaseDate) {
+        pendingReleaseDate.current = null;
+        return;
+      }
+      if (!navigator.onLine || pendingReleaseDate.current === currentDate) return;
+
+      pendingReleaseDate.current = currentDate;
+      setLoading(true);
+      setLoadingError(false);
+      setLoadAttempt((attempt) => attempt + 1);
+    };
+    const refreshOnResume = () => {
+      pendingReleaseDate.current = null;
+      refreshForCurrentDate();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshOnResume();
+    };
+    const handleOnline = () => {
+      pendingReleaseDate.current = null;
+      refreshForCurrentDate();
+    };
+    const now = new Date();
+    const delay = getNextNewYorkMidnight(now).getTime() - now.getTime();
+    const midnightTimer = window.setTimeout(refreshForCurrentDate, Math.max(0, delay));
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', refreshOnResume);
+    window.addEventListener('online', handleOnline);
+    refreshForCurrentDate();
+
+    return () => {
+      window.clearTimeout(midnightTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', refreshOnResume);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [release]);
+
   if (loading) return <LoadingPuzzle />;
   if (loadingError || !release) return <PuzzleLoadError onRetry={() => {
     setLoading(true);

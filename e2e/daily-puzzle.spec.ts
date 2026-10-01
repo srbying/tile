@@ -38,6 +38,107 @@ test('serves a stable generated daily puzzle and starts gameplay with it', async
   await expect(page.getByRole('group', { name: 'Your mosaic' }).getByRole('button')).toHaveCount(36);
 });
 
+test('loads the new release at midnight and drops the previous day’s saved progress', async ({ page }) => {
+  const response = await page.request.get('/api/puzzles/today');
+  const baseRelease = await response.json() as {
+    puzzleId: string;
+    releaseDate: string;
+    generatorVersion: number;
+    puzzle: { id: string; [key: string]: unknown };
+    [key: string]: unknown;
+  };
+  const withDate = (date: string) => {
+    const puzzleId = `daily-test-${date}`;
+    return {
+      ...baseRelease,
+      puzzleId,
+      releaseDate: date,
+      puzzle: { ...baseRelease.puzzle, id: puzzleId },
+    };
+  };
+  const yesterday = withDate('2026-09-30');
+  const today = withDate('2026-10-01');
+
+  await page.clock.install({ time: new Date('2026-10-01T03:59:00.000Z') });
+  let releaseRequests = 0;
+  await page.route('**/api/puzzles/today', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify(releaseRequests++ === 0 ? yesterday : today),
+  }));
+
+  await page.goto('/');
+  await expect(page.getByText('DAILY Nº 2026-09-30')).toBeVisible();
+  await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
+  const board = page.getByRole('group', { name: 'Your mosaic' }).getByRole('button');
+  await board.nth(0).click();
+  await board.nth(1).click();
+  await expect(page.getByText('12 of 13 swaps remaining', { exact: true })).toBeVisible();
+
+  await page.clock.fastForward(60_000);
+
+  await expect(page.getByText('DAILY Nº 2026-10-01')).toBeVisible();
+  await expect(page.getByText('13 of 13 swaps remaining', { exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('tile-puzzle-progress:v1'))).toBeNull();
+});
+
+test('retries a stale cached release when the page resumes after midnight', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Playwright Cache Storage failure fallback is exercised in Chromium only.');
+  const response = await page.request.get('/api/puzzles/today');
+  const baseRelease = await response.json() as {
+    puzzleId: string;
+    releaseDate: string;
+    generatorVersion: number;
+    puzzle: { id: string; [key: string]: unknown };
+    [key: string]: unknown;
+  };
+  const withDate = (date: string) => {
+    const puzzleId = `daily-test-${date}`;
+    return {
+      ...baseRelease,
+      puzzleId,
+      releaseDate: date,
+      puzzle: { ...baseRelease.puzzle, id: puzzleId },
+    };
+  };
+  const yesterday = withDate('2026-09-30');
+  const today = withDate('2026-10-01');
+
+  await page.clock.install({ time: new Date('2026-10-01T03:59:00.000Z') });
+  let releaseRequests = 0;
+  await page.route('**/api/puzzles/today', async (route) => {
+    const requestNumber = releaseRequests++;
+    if (requestNumber === 1) {
+      await route.abort('failed');
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(requestNumber === 0 ? yesterday : today),
+    });
+  });
+
+  await page.goto('/');
+  await expect(page.getByText('DAILY Nº 2026-09-30')).toBeVisible();
+  await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
+  const board = page.getByRole('group', { name: 'Your mosaic' }).getByRole('button');
+  await board.nth(0).click();
+  await board.nth(1).click();
+  await expect(page.getByText('12 of 13 swaps remaining', { exact: true })).toBeVisible();
+
+  await page.clock.setSystemTime(new Date('2026-10-01T04:00:00.000Z'));
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+
+  await expect.poll(() => releaseRequests).toBe(2);
+  await expect(page.getByText('Cached copy · 2026-09-30', { exact: true })).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event('pageshow')));
+
+  await expect(page.getByText('DAILY Nº 2026-10-01')).toBeVisible();
+  await expect(page.getByText('13 of 13 swaps remaining', { exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('tile-puzzle-progress:v1'))).toBeNull();
+});
+
 test('keeps the app and current puzzle playable after going offline', async ({ page, context, browserName }) => {
   test.skip(browserName !== 'chromium', 'Playwright service-worker offline interception is supported in Chromium only.');
   const todayResponse = await page.request.get('/api/puzzles/today');

@@ -27,12 +27,8 @@ const solvePuzzle = async (page: Page) => {
 test.beforeEach(async ({ page }) => {
   const puzzle = { schemaVersion: 1, ...samplePuzzle, attemptLimits: { easy: 15, medium: 13, hard: 10 } };
   const release = { puzzleId: puzzle.id, releaseDate: '2026-09-29', generatorVersion: 1, puzzle };
+  await page.clock.setFixedTime(new Date('2026-09-29T12:00:00.000Z'));
   await page.route('**/api/puzzles/today', (route) => route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify(release),
-  }));
-  await page.route(`**/api/puzzles/${puzzle.id}`, (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify(release),
@@ -40,11 +36,11 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test('falls back to today when saved-puzzle lookup fails', async ({ page }) => {
+test('discards saved progress when it belongs to a previous release', async ({ page }) => {
   const startingBoard = samplePuzzle.start;
   await page.evaluate((board) => localStorage.setItem('tile-puzzle-progress:v1', JSON.stringify({
     version: 1,
-    puzzleId: 'sample-mosaic-01',
+    puzzleId: 'yesterday-puzzle',
     tierId: 'hard',
     board,
     attemptsUsed: 1,
@@ -52,7 +48,6 @@ test('falls back to today when saved-puzzle lookup fails', async ({ page }) => {
     hintedPositions: null,
     elapsedMilliseconds: 1,
   })), startingBoard);
-  await page.route('**/api/puzzles/sample-mosaic-01', (route) => route.fulfill({ status: 503, body: '' }));
 
   await page.reload();
 
@@ -404,10 +399,10 @@ test('reload resumes saved mode, board, attempts, hint, and active time', async 
   expect(savedBeforeReload.puzzleId).toBe(samplePuzzle.id);
 
   await page.waitForTimeout(1_050);
-  const puzzleLookups: string[] = [];
+  const puzzleRequests: string[] = [];
   page.on('request', (request) => {
     const path = new URL(request.url()).pathname;
-    if (path.startsWith('/api/puzzles/')) puzzleLookups.push(path);
+    if (path.startsWith('/api/puzzles/')) puzzleRequests.push(path);
   });
   await page.reload();
 
@@ -416,7 +411,8 @@ test('reload resumes saved mode, board, attempts, hint, and active time', async 
   await expect(page.getByRole('button', { name: 'Use hint', exact: true })).toBeDisabled();
   await expect(board(page).locator('.is-hinted')).toHaveCount(2);
   expect(await artworks(page)).toEqual(boardBeforeReload);
-  expect(puzzleLookups).toContain(`/api/puzzles/${savedBeforeReload.puzzleId}`);
+  expect(puzzleRequests).toContain('/api/puzzles/today');
+  expect(puzzleRequests).not.toContain(`/api/puzzles/${savedBeforeReload.puzzleId}`);
   const savedAfterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
   expect(savedAfterReload.elapsedMilliseconds).toBeGreaterThanOrEqual(savedBeforeReload.elapsedMilliseconds + 900);
 
