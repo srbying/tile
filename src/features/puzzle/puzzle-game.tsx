@@ -446,8 +446,12 @@ export function PuzzleGame() {
       setLoadingError(false);
       setLoadAttempt((attempt) => attempt + 1);
     };
+    const refreshOnResume = () => {
+      pendingReleaseDate.current = null;
+      refreshForCurrentDate();
+    };
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') refreshForCurrentDate();
+      if (document.visibilityState === 'visible') refreshOnResume();
     };
     const handleOnline = () => {
       pendingReleaseDate.current = null;
@@ -458,14 +462,14 @@ export function PuzzleGame() {
     const midnightTimer = window.setTimeout(refreshForCurrentDate, Math.max(0, delay));
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('pageshow', refreshForCurrentDate);
+    window.addEventListener('pageshow', refreshOnResume);
     window.addEventListener('online', handleOnline);
     refreshForCurrentDate();
 
     return () => {
       window.clearTimeout(midnightTimer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('pageshow', refreshForCurrentDate);
+      window.removeEventListener('pageshow', refreshOnResume);
       window.removeEventListener('online', handleOnline);
     };
   }, [release]);
