@@ -153,12 +153,8 @@ async function expectStaticFeedback(page: Page, phase: string) {
 test.beforeEach(async ({ page }) => {
   const puzzle = { schemaVersion: 1, ...samplePuzzle, attemptLimits: { easy: 15, medium: 13, hard: 10 } };
   const release = { puzzleId: puzzle.id, releaseDate: '2026-09-29', generatorVersion: 1, puzzle };
+  await page.clock.setFixedTime(new Date('2026-09-29T12:00:00.000Z'));
   await page.route('**/api/puzzles/today', (route) => route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify(release),
-  }));
-  await page.route('**/api/puzzles/sample-mosaic-01', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify(release),

@@ -3,6 +3,7 @@ import {
   dailyPuzzleFromId,
   generateDailyCandidate,
   generateDailyPuzzle,
+  getNextNewYorkMidnight,
   getNewYorkPuzzleDate,
   getRecentPuzzleTargets,
 } from './daily-puzzle-generator';
@@ -76,5 +77,12 @@ describe('daily puzzle generator', () => {
     expect(getNewYorkPuzzleDate(new Date('2026-03-08T05:00:00Z'))).toBe('2026-03-08');
     expect(getNewYorkPuzzleDate(new Date('2026-11-01T03:59:00Z'))).toBe('2026-10-31');
     expect(getNewYorkPuzzleDate(new Date('2026-11-01T04:00:00Z'))).toBe('2026-11-01');
+  });
+
+  it('schedules the next New York midnight across daylight-saving changes', () => {
+    expect(getNextNewYorkMidnight(new Date('2026-03-08T05:00:01Z')).toISOString())
+      .toBe('2026-03-09T04:00:00.000Z');
+    expect(getNextNewYorkMidnight(new Date('2026-11-01T04:00:01Z')).toISOString())
+      .toBe('2026-11-02T05:00:00.000Z');
   });
 });

@@ -65,6 +65,41 @@ export function getNewYorkPuzzleDate(now: Date): string {
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
 
+export function getNextNewYorkMidnight(now: Date): Date {
+  const [year, month, day] = getNewYorkPuzzleDate(now).split('-').map(Number);
+  const nextDate = new Date(Date.UTC(year!, month! - 1, day! + 1)).toISOString().slice(0, 10);
+  const targetAsUtc = Date.parse(`${nextDate}T00:00:00.000Z`);
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  let candidate = targetAsUtc;
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const parts = formatter.formatToParts(new Date(candidate));
+    const part = (type: string) => Number(parts.find((value) => value.type === type)?.value);
+    const localTimeAsUtc = Date.UTC(
+      part('year'),
+      part('month') - 1,
+      part('day'),
+      part('hour'),
+      part('minute'),
+      part('second'),
+    );
+    const adjusted = targetAsUtc - (localTimeAsUtc - candidate);
+    if (adjusted === candidate) return new Date(candidate);
+    candidate = adjusted;
+  }
+
+  return new Date(candidate);
+}
+
 function projectAllTiers(target: readonly TileAppearance[], start: readonly TileAppearance[]) {
   return difficultyTierConfigs.map(({ id }) => ({
     id,
