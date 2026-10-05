@@ -183,6 +183,9 @@ function PuzzleRound({
       return (isCompletionSnapshot(saved) ? engine.restoreCompletion(saved) : engine.restore(saved)) ?? engine.initialize();
     },
   );
+  const targetDialogRef = useRef<HTMLDialogElement>(null);
+  const targetZoomButtonRef = useRef<HTMLButtonElement>(null);
+  const targetDialogScrollY = useRef(0);
   const checkpointState = useRef(state);
   const timer = useRef(createActiveSolveTimer());
   const [activeElapsedMilliseconds, setActiveElapsedMilliseconds] = useState<number | null>(
@@ -205,6 +208,21 @@ function PuzzleRound({
   const hintMessage = state.hintedPositions === null
     ? null
     : `Hint: Swap ${describePosition(state.hintedPositions[0])} with ${describePosition(state.hintedPositions[1])} to move closer to the target.`;
+
+  const openTargetDialog = () => {
+    const dialog = targetDialogRef.current;
+    if (!dialog || dialog.open) return;
+    targetDialogScrollY.current = window.scrollY;
+    dialog.showModal();
+    dialog.querySelector<HTMLButtonElement>('.target-dialog-close')?.focus({ preventScroll: true });
+  };
+
+  const restoreRoundView = () => {
+    window.requestAnimationFrame(() => {
+      targetZoomButtonRef.current?.focus({ preventScroll: true });
+      window.scrollTo(0, targetDialogScrollY.current);
+    });
+  };
 
   const shareResult = async () => {
     const text = buildResultShareText({
@@ -341,7 +359,7 @@ function PuzzleRound({
     <div className="page-shell">
       <GameHeader />
       <main id="main">
-        <section className="intro" aria-labelledby="game-title">
+        <section className="intro puzzle-intro" aria-labelledby="game-title">
           <div className="eyebrow"><span className="small-rule" /> AN EVERYDAY MOSAIC</div>
           <h1 id="game-title">Daily Tile-Swap Puzzle<span className="title-dot">.</span></h1>
           <p id="game-instruction" className="intro-copy">Match the target. Tap two tiles to swap them.</p>
@@ -349,16 +367,31 @@ function PuzzleRound({
         </section>
 
         <div className="game-layout">
-          <section className="board-section" aria-labelledby="target-heading">
+          <section className="board-section target-section" aria-labelledby="target-heading">
             <div className="board-heading">
               <h2 id="target-heading"><span className="section-number">01</span> The target</h2>
               <span className="board-tag">LOOK CLOSELY</span>
             </div>
-            <TargetBoard tiles={puzzle.target} />
+            <div className="target-reference-row">
+              <TargetBoard tiles={puzzle.target} />
+              <div className="target-reference-actions">
+                <span>Keep this pattern in view as you play.</span>
+                <button
+                  className="enlarge-target-button"
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-controls="target-enlargement-dialog"
+                  ref={targetZoomButtonRef}
+                  onClick={openTargetDialog}
+                >
+                  View target larger
+                </button>
+              </div>
+            </div>
             <p className="board-note"><span aria-hidden="true">◇</span> A little symmetry, waiting to be restored.</p>
           </section>
 
-          <section className="board-section" aria-labelledby="board-heading">
+          <section className="board-section player-section" aria-labelledby="board-heading">
             <div className="board-heading">
               <h2 id="board-heading"><span className="section-number">02</span> Your mosaic</h2>
               <span className={`board-tag progress-tag${won ? ' complete-tag' : ''}${lost ? ' failed-tag' : ''}`}>
@@ -402,6 +435,52 @@ function PuzzleRound({
               </div>
             </div>
           </section>
+
+          <dialog
+            className="target-enlargement-dialog"
+            id="target-enlargement-dialog"
+            ref={targetDialogRef}
+            aria-labelledby="target-dialog-heading"
+            aria-describedby="target-dialog-description"
+            onClose={restoreRoundView}
+            onKeyDown={(event) => {
+              if (event.key !== 'Tab') return;
+              const focusable = [...(targetDialogRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])];
+              if (focusable.length === 0) return;
+              const currentIndex = focusable.indexOf(document.activeElement as HTMLButtonElement);
+              const nextIndex = event.shiftKey
+                ? currentIndex <= 0 ? focusable.length - 1 : currentIndex - 1
+                : currentIndex < 0 || currentIndex === focusable.length - 1 ? 0 : currentIndex + 1;
+              event.preventDefault();
+              focusable[nextIndex]?.focus();
+            }}
+          >
+            <div className="target-dialog-heading">
+              <div>
+                <h2 id="target-dialog-heading">Enlarged target</h2>
+                <p>Full-size reference · 6 × 6</p>
+              </div>
+              <button
+                className="target-dialog-close"
+                type="button"
+                aria-label="Close enlarged target"
+                onClick={() => targetDialogRef.current?.close()}
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+            <TargetBoard tiles={puzzle.target} />
+            <p id="target-dialog-description" className="target-dialog-description">
+              Take a closer look, then return to your mosaic. Your puzzle position is saved.
+            </p>
+            <button
+              className="target-dialog-return"
+              type="button"
+              onClick={() => targetDialogRef.current?.close()}
+            >
+              Return to puzzle
+            </button>
+          </dialog>
         </div>
 
         <aside className="how-to-play" aria-label="Playing tips">

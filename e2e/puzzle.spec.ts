@@ -318,7 +318,7 @@ for (const input of ['pointer', 'keyboard'] as const) {
 test('fits phone widths with reliable square touch targets and static feedback', async ({ page }) => {
   await startGame(page);
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  for (const width of [320, 375, 1280]) {
+  for (const width of [320, 375, 390, 768, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     const sizes = await board(page).getByRole('button').evaluateAll((elements) => elements.map((element) => {
@@ -330,13 +330,82 @@ test('fits phone widths with reliable square touch targets and static feedback',
       expect(size.height).toBeGreaterThanOrEqual(44);
       expect(Math.abs(size.width - size.height)).toBeLessThan(1);
     }
-    const reference = await page.getByRole('list', { name: 'Target arrangement' }).boundingBox();
+    const reference = await page.locator('.target-section .target-grid').boundingBox();
     const playable = await board(page).boundingBox();
-    expect(reference!.width).toBeCloseTo(playable!.width, 0);
+    if (width <= 760) {
+      expect(reference!.width).toBeGreaterThanOrEqual(124);
+      expect(reference!.width).toBeLessThanOrEqual(148);
+      await expect(page.getByRole('button', { name: 'View target larger' })).toBeVisible();
+    } else {
+      expect(reference!.width).toBeCloseTo(playable!.width, 0);
+      await expect(page.getByRole('button', { name: 'View target larger' })).toBeHidden();
+      const targetSection = await page.locator('.target-section').boundingBox();
+      const playerSection = await page.locator('.player-section').boundingBox();
+      expect(playerSection!.x).toBeGreaterThan(targetSection!.x);
+      expect(playerSection!.y).toBeCloseTo(targetSection!.y, 0);
+    }
   }
   await cell(page, 1, 1).click();
   await expect(cell(page, 1, 1)).toHaveAttribute('aria-pressed', 'true');
   expect(await cell(page, 1, 1).evaluate((element) => getComputedStyle(element).animationName)).toBe('none');
+});
+
+test('pins a compact target and restores the mobile puzzle after enlarged view', async ({ page }) => {
+  await startGame(page);
+  await page.setViewportSize({ width: 375, height: 568 });
+
+  const opener = page.getByRole('button', { name: 'View target larger' });
+  const targetSection = page.locator('.target-section');
+  const dialog = page.getByRole('dialog', { name: 'Enlarged target' });
+  const selectedTile = cell(page, 1, 1);
+  await selectedTile.click();
+
+  await page.evaluate(() => {
+    const player = document.querySelector('.player-section');
+    if (!player) throw new Error('Player section is missing.');
+    window.scrollTo(0, player.getBoundingClientRect().top + window.scrollY + 20);
+  });
+  const stickyTop = await targetSection.evaluate((element) => element.getBoundingClientRect().top);
+  expect(stickyTop).toBeCloseTo(0, 0);
+  const scrollPosition = await page.evaluate(() => window.scrollY);
+
+  await opener.click();
+  await expect(dialog).toBeVisible();
+  const closeButton = dialog.getByRole('button', { name: 'Close enlarged target' });
+  const returnButton = dialog.getByRole('button', { name: 'Return to puzzle' });
+  await expect(closeButton).toBeFocused();
+  await expect(dialog.getByRole('list', { name: 'Target arrangement' }).getByRole('listitem')).toHaveCount(36);
+  const previewSize = await targetSection.locator('.target-grid').boundingBox();
+  const enlargedSize = await dialog.getByRole('list', { name: 'Target arrangement' }).boundingBox();
+  expect(enlargedSize!.width).toBeGreaterThan(previewSize!.width * 1.8);
+  await page.keyboard.press('Tab');
+  await expect(returnButton).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(closeButton).toBeFocused();
+
+  await returnButton.click();
+  await expect(dialog).not.toBeVisible();
+  await expect(opener).toBeFocused();
+  await expect(selectedTile).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText('13 of 13 swaps remaining', { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrollPosition);
+
+  await opener.click();
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).not.toBeVisible();
+  await expect(opener).toBeFocused();
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrollPosition);
+
+  await page.setViewportSize({ width: 667, height: 375 });
+  await opener.click();
+  await expect(dialog).toBeVisible();
+  await expect(closeButton).toBeVisible();
+  const landscapeDialog = await dialog.boundingBox();
+  expect(landscapeDialog!.height).toBeLessThanOrEqual(351);
+  await closeButton.click();
+  await expect(dialog).not.toBeVisible();
+  await expect(opener).toBeFocused();
 });
 
 test('a loss on the final Hard attempt colors and locks the full board', async ({ page }) => {

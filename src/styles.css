@@ -63,6 +63,8 @@ h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(32px, 4.5v
 .failed-tag { color: #8b3024; }
 .board-note { display: flex; gap: 8px; align-items: center; justify-content: center; color: var(--muted); font-family: Georgia, serif; font-size: 13px; font-style: italic; margin: 20px 0; line-height: 1.5; }
 .board-note > span { font-size: 21px; color: var(--terracotta); }
+.target-reference-actions { display: none; }
+.target-enlargement-dialog { display: none; }
 .game-feedback { padding-top: 18px; min-height: 113px; }
 .game-feedback output { display: flex; align-items: baseline; gap: 9px; color: var(--muted); font-size: 12px; line-height: 1.6; min-height: 38px; margin: 0; }
 .feedback-icon { font-size: 18px; color: var(--teal); }
@@ -136,7 +138,106 @@ h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(32px, 4.5v
   .intro { padding: 33px 0 30px; }
   h1 { font-size: 36px; letter-spacing: -1.3px; }
   .intro-copy { font-size: 13px; }
-  .game-layout { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .puzzle-intro { padding: 18px 0 14px; }
+  .puzzle-intro .eyebrow { display: none; }
+  .puzzle-intro h1 { margin: 0 0 6px; font-size: clamp(24px, 7vw, 30px); letter-spacing: -.8px; }
+  .puzzle-intro .puzzle-caption { gap: 7px; margin-top: 9px; font-size: 13px; }
+  .game-layout { display: block; }
+  .target-section {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line);
+    background: #f5f0e5;
+    box-shadow: 0 6px 14px #263f3810;
+  }
+  .target-section .board-heading { margin-bottom: 7px; }
+  .target-section .board-heading h2 { font-size: 18px; }
+  .target-section .board-tag { display: none; }
+  .target-reference-row { display: flex; align-items: center; gap: 12px; }
+  .target-section .target-grid { width: clamp(124px, 38vw, 148px); flex: 0 0 clamp(124px, 38vw, 148px); }
+  .target-reference-actions {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .enlarge-target-button {
+    min-height: 44px;
+    padding: 7px 10px;
+    border: 1px solid var(--teal);
+    border-radius: 3px;
+    background: #fffdf5;
+    color: var(--teal);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .target-section .board-note { display: none; }
+  .player-section { padding-top: 14px; }
+  .target-enlargement-dialog[open] {
+    display: block;
+    width: min(520px, calc(100vw - 24px));
+    max-width: none;
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: auto;
+    padding: 14px;
+    border: 1px solid #c7c3b3;
+    border-radius: 8px;
+    background: #fffdf5;
+    color: #263f38;
+    box-shadow: 0 10px 35px #0c171333;
+  }
+  .target-enlargement-dialog::backdrop { background: rgb(20 32 28 / .68); }
+  .target-dialog-heading {
+    position: sticky;
+    z-index: 1;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: -3px -3px 12px;
+    padding: 3px;
+    background: #fffdf5;
+  }
+  .target-dialog-heading h2 { margin: 0; font-family: Georgia, serif; font-size: 22px; font-weight: 400; }
+  .target-dialog-heading p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+  .target-dialog-close {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: #fffdf5;
+    color: var(--teal);
+    font-size: 22px;
+    cursor: pointer;
+  }
+  .target-enlargement-dialog .target-grid { width: 100%; gap: 3px; padding: 8px; }
+  .target-dialog-description { margin: 10px 1px 12px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+  .target-dialog-return {
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 14px;
+    border: 1px solid #19463e;
+    border-radius: 4px;
+    background: var(--teal);
+    color: #fffdf5;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
   .board-note { margin: 15px 0 3px; }
   .board-heading h2 { font-size: 21px; }
   .how-to-play { align-items: flex-start; flex-direction: column; gap: 12px; margin-top: 9px; }
@@ -163,6 +264,8 @@ h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(32px, 4.5v
   .board-tag { font-size: 7px; letter-spacing: .7px; }
   .section-number { margin-right: 7px; }
   .board-note { font-size: 12px; }
+  .target-reference-row { gap: 9px; }
+  .enlarge-target-button { padding-inline: 8px; }
 }
 
 /* Feedback is static, including when reduced motion is requested. */
