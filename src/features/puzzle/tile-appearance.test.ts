@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeTile, sameAppearance, visibleAppearance } from './tile-appearance';
+import { describeTile, motifs, sameAppearance, visibleAppearance } from './tile-appearance';
 import type { QuarterTurn, TileAppearance } from './puzzle.types';
 
 const tile: TileAppearance = {
@@ -7,6 +7,17 @@ const tile: TileAppearance = {
 };
 
 describe('visible tile equivalence', () => {
+  it('registers all approved motifs as visibly distinct geometries', () => {
+    const motifIds = Object.keys(motifs);
+    expect(motifIds).toHaveLength(30);
+    expect(new Set(motifIds.map((motif) => JSON.stringify(visibleAppearance({ ...tile, motif } as TileAppearance).strokes))).size)
+      .toBe(30);
+  });
+
+  it('keeps the original v1 diamond geometry unchanged', () => {
+    expect(motifs.diamond.strokes[0]).toEqual([[50, 16], [84, 50], [50, 84], [16, 50], [50, 16]]);
+  });
+
   it('compares appearance rather than object identity or extra IDs', () => {
     expect(sameAppearance({ ...tile }, { ...tile })).toBe(true);
     const first = { ...tile, id: 'a' };

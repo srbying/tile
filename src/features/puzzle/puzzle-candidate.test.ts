@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as solver from './puzzle-solver';
-import { validatePuzzleCandidate } from './puzzle-candidate';
+import { parsePuzzleCandidate, validatePuzzleCandidate } from './puzzle-candidate';
 import { sameAppearance } from './tile-appearance';
 import type { PuzzleCandidate, TileAppearance } from './puzzle.types';
 
@@ -54,6 +54,14 @@ describe('puzzle candidate validation', () => {
     expect(codes({ ...value, target: value.target.slice(1) })).toContain('invalid-board');
     expect(codes({ ...value, start: [{ ...value.start[0]!, motif: 'hidden' } as unknown as TileAppearance, ...value.start.slice(1)] }))
       .toContain('invalid-tile');
+  });
+
+  it('parses candidates that use newly cataloged waveform motifs and colors', () => {
+    const value = candidate();
+    const target = [...value.target];
+    target[0] = { ...target[0]!, motif: 'waveform-sine', color: 'indigo' } as TileAppearance;
+
+    expect(parsePuzzleCandidate({ ...value, target })).not.toBeNull();
   });
 
   it('rejects candidates whose visible tile inventories cannot be swapped into place', () => {

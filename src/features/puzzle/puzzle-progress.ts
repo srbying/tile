@@ -1,4 +1,5 @@
 import { difficultyTierConfigs } from './difficulty-preview';
+import { isMotif, isTileColor } from './tile-appearance';
 import type { DifficultyTierId, PuzzleDefinition, SavedPuzzleProgressV1, TileAppearance } from './puzzle.types';
 
 export const puzzleProgressStorageKey = 'tile-puzzle-progress:v1';
@@ -15,8 +16,6 @@ export interface PuzzleProgressRepository {
   clear(): void;
 }
 
-const motifs = new Set(['meander', 'chevron', 'diamond']);
-const colors = new Set(['teal', 'terracotta']);
 const turns = new Set([0, 90, 180, 270]);
 const tierIds = new Set<DifficultyTierId>(difficultyTierConfigs.map(({ id }) => id));
 
@@ -26,8 +25,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isTileAppearance(value: unknown): value is TileAppearance {
   if (!isRecord(value)) return false;
-  return typeof value.motif === 'string' && motifs.has(value.motif)
-    && typeof value.color === 'string' && colors.has(value.color)
+  return isMotif(value.motif)
+    && isTileColor(value.color)
     && (value.strokeWeight === 4 || value.strokeWeight === 7)
     && typeof value.orientation === 'number' && turns.has(value.orientation)
     && typeof value.inverted === 'boolean'

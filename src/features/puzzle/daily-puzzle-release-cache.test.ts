@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createDailyPuzzleReleaseCache, createDailyPuzzleReleaseLoader } from './daily-puzzle-release-cache';
-import { generateDailyPuzzle } from './daily-puzzle-generator';
+import {
+  createDailyPuzzleReleaseCache,
+  createDailyPuzzleReleaseLoader,
+  parseDailyPuzzleRelease,
+} from './daily-puzzle-release-cache';
+import { dailyPuzzleFromId, generateDailyPuzzle } from './daily-puzzle-generator';
 import type { DailyPuzzleRelease } from './puzzle.types';
 
 const today = generateDailyPuzzle('2026-09-29');
@@ -16,6 +20,13 @@ function memoryCache(initial: unknown = null) {
 }
 
 describe('daily puzzle release cache', () => {
+  it('keeps v1 releases readable while accepting expanded v2 releases', () => {
+    const legacy = dailyPuzzleFromId('daily-v1-2026-09-29-0-0');
+
+    expect(parseDailyPuzzleRelease(legacy)).toEqual(legacy);
+    expect(parseDailyPuzzleRelease(today)).toEqual(today);
+  });
+
   it('validates and caches the latest successful current-release response', async () => {
     const cache = memoryCache();
     const fetcher = vi.fn(async () => Response.json(today));
@@ -58,7 +69,7 @@ describe('daily puzzle release cache', () => {
     });
     await expect(malformedLive(new AbortController().signal)).rejects.toThrow('Invalid daily puzzle release.');
 
-    const malformedCache = memoryCache({ ...today, generatorVersion: 2 });
+    const malformedCache = memoryCache({ ...today, generatorVersion: 3 });
     const offline = createDailyPuzzleReleaseLoader({
       fetcher: vi.fn(async () => { throw new TypeError('offline'); }),
       cache: malformedCache,

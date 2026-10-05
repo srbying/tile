@@ -2,7 +2,7 @@ import { buildDifficultyPuzzle, difficultyTierConfigs } from './difficulty-previ
 import { findProductiveHint } from './puzzle-hint.js';
 import { minimumVisibleSwaps } from './puzzle-solver.js';
 import { hasRecentVisualDuplicate } from './puzzle-symmetry.js';
-import { sameAppearance, visibleAppearance } from './tile-appearance.js';
+import { isMotif, isTileColor, sameAppearance, visibleAppearance } from './tile-appearance.js';
 import type { DifficultyTierId, PuzzleCandidate, PuzzleHintPositions, TileAppearance } from './puzzle.types.js';
 
 export type PuzzleValidationCode =
@@ -43,8 +43,6 @@ export interface PuzzleValidationOptions {
   readonly recentTargets?: readonly (readonly TileAppearance[])[];
 }
 
-const motifSet = new Set(['meander', 'chevron', 'diamond']);
-const colorSet = new Set(['teal', 'terracotta']);
 const turns = new Set([0, 90, 180, 270]);
 const tierSet = new Set<DifficultyTierId>(difficultyTierConfigs.map(({ id }) => id));
 
@@ -71,8 +69,8 @@ function isTile(value: unknown): value is TileAppearance {
   if (!record(value)) return false;
   const allowed = new Set(['motif', 'color', 'strokeWeight', 'orientation', 'inverted', 'mirrored']);
   if (Object.keys(value).some((key) => !allowed.has(key))) return false;
-  return typeof value.motif === 'string' && motifSet.has(value.motif)
-    && typeof value.color === 'string' && colorSet.has(value.color)
+  return isMotif(value.motif)
+    && isTileColor(value.color)
     && (value.strokeWeight === 4 || value.strokeWeight === 7)
     && typeof value.orientation === 'number' && turns.has(value.orientation)
     && typeof value.inverted === 'boolean'
