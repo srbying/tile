@@ -41,17 +41,22 @@ export function createPuzzleEngine(puzzle: PuzzleDefinition, { sameAppearance, a
     };
   }
 
-  function restore(saved: RestorableGameState): GameState | null {
-    if (!Array.isArray(saved.board) || saved.board.length !== cellCount) return null;
-    if (!isValidBoard(saved.board)) return null;
-    if (!Number.isInteger(saved.attemptsUsed) || saved.attemptsUsed < 0 || saved.attemptsUsed >= attemptLimit) return null;
-    if (typeof saved.hintUsed !== 'boolean') return null;
+  function isValidRestorableState(saved: RestorableGameState): boolean {
+    if (!Array.isArray(saved.board) || saved.board.length !== cellCount) return false;
+    if (!isValidBoard(saved.board)) return false;
+    if (!Number.isInteger(saved.attemptsUsed) || saved.attemptsUsed < 0 || saved.attemptsUsed > attemptLimit) return false;
+    if (typeof saved.hintUsed !== 'boolean') return false;
     const positions = saved.hintedPositions;
     if (positions !== null && (!Array.isArray(positions)
       || positions.length !== 2
       || !positions.every((position) => Number.isInteger(position) && position >= 0 && position < cellCount)
-      || positions[0] === positions[1])) return null;
-    if (!saved.hintUsed && positions !== null) return null;
+      || positions[0] === positions[1])) return false;
+    if (!saved.hintUsed && positions !== null) return false;
+    return true;
+  }
+
+  function restore(saved: RestorableGameState): GameState | null {
+    if (!isValidRestorableState(saved) || saved.attemptsUsed >= attemptLimit) return null;
 
     const board = [...saved.board];
     if (isSolved(board)) return null;
@@ -62,7 +67,22 @@ export function createPuzzleEngine(puzzle: PuzzleDefinition, { sameAppearance, a
       attemptsUsed: saved.attemptsUsed,
       attemptLimit,
       hintUsed: saved.hintUsed,
-      hintedPositions: positions,
+      hintedPositions: saved.hintedPositions,
+    };
+  }
+
+  function restoreCompletion(saved: RestorableGameState & { readonly status: 'won' | 'lost' }): GameState | null {
+    if ((saved.status !== 'won' && saved.status !== 'lost') || !isValidRestorableState(saved)) return null;
+    const solved = isSolved(saved.board);
+    if (saved.status === 'won' ? !solved : solved || saved.attemptsUsed !== attemptLimit) return null;
+    return {
+      board: [...saved.board],
+      selectedPosition: null,
+      status: saved.status,
+      attemptsUsed: saved.attemptsUsed,
+      attemptLimit,
+      hintUsed: saved.hintUsed,
+      hintedPositions: saved.hintedPositions,
     };
   }
 
@@ -102,5 +122,5 @@ export function createPuzzleEngine(puzzle: PuzzleDefinition, { sameAppearance, a
     };
   }
 
-  return { initialize, reduce, restore };
+  return { initialize, reduce, restore, restoreCompletion };
 }

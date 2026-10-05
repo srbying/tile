@@ -3,9 +3,9 @@ import { buildDifficultyPuzzle, difficultyTierConfigs, getDifficultyTierConfig }
 import type { DifficultyTierId, DifficultyTierConfig } from './difficulty-preview';
 import { createPuzzleEngine } from './puzzle-engine';
 import { PuzzleBoard, TargetBoard, describePosition } from './puzzle-board';
-import { createPuzzleProgressRepository } from './puzzle-progress';
-import type { PuzzleProgressRepository } from './puzzle-progress';
-import type { DailyPuzzleRelease, SavedPuzzleProgressV1 } from './puzzle.types';
+import { createPuzzleCompletionRepository, createPuzzleProgressRepository } from './puzzle-progress';
+import type { PuzzleCompletionsByTier, PuzzleProgressRepository } from './puzzle-progress';
+import type { DailyPuzzleRelease, SavedPuzzleCompletionV1, SavedPuzzleProgressV1 } from './puzzle.types';
 import { getNextNewYorkMidnight, getNewYorkPuzzleDate } from './daily-puzzle-generator';
 import {
   createDailyPuzzleReleaseCache,
@@ -47,11 +47,36 @@ function GameFooter({ releaseDate }: { readonly releaseDate?: string } = {}) {
   return <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>{releaseDate ? `DAILY PUZZLE · ${releaseDate}` : 'SAMPLE COLLECTION'} <span aria-hidden="true">✦</span></span><a href="/author">Offline authoring</a></footer>;
 }
 
+function validatePuzzleCompletions(
+  release: DailyPuzzleRelease,
+  completions: PuzzleCompletionsByTier,
+): PuzzleCompletionsByTier {
+  const valid: PuzzleCompletionsByTier = {};
+  for (const tier of difficultyTierConfigs) {
+    const completion = completions[tier.id];
+    if (!completion || completion.puzzleId !== release.puzzleId || completion.tierId !== tier.id) continue;
+    const puzzle = buildDifficultyPuzzle(release.puzzle, tier.id);
+    const engine = createPuzzleEngine(puzzle, {
+      sameAppearance,
+      attemptLimit: release.puzzle.attemptLimits[tier.id],
+    });
+    if (engine.restoreCompletion(completion)) valid[tier.id] = completion;
+  }
+  return valid;
+}
+
+function isCompletionSnapshot(
+  saved: SavedPuzzleCompletionV1 | SavedPuzzleProgressV1,
+): saved is SavedPuzzleCompletionV1 {
+  return 'status' in saved && (saved.status === 'won' || saved.status === 'lost');
+}
+
 function ModeSelection({
   selectedTier,
   puzzle,
   releaseDate,
   cachedCopy,
+  completions,
   onSelect,
   onStart,
 }: {
@@ -59,6 +84,7 @@ function ModeSelection({
   readonly puzzle: DailyPuzzleRelease['puzzle'];
   readonly releaseDate: string;
   readonly cachedCopy: boolean;
+  readonly completions: PuzzleCompletionsByTier;
   readonly onSelect: (tier: DifficultyTierId) => void;
   readonly onStart: () => void;
 }) {
@@ -80,33 +106,42 @@ function ModeSelection({
           </div>
           <fieldset className="mode-options">
             <legend className="visually-hidden">Difficulty mode</legend>
-            {difficultyTierConfigs.map((tier) => (
-              <label
-                className={`mode-option${selectedTier === tier.id ? ' is-selected' : ''}`}
-                htmlFor={`difficulty-${tier.id}`}
-                key={tier.id}
-              >
-                <input
-                  type="radio"
-                  id={`difficulty-${tier.id}`}
-                  name="difficulty"
-                  value={tier.id}
-                  checked={selectedTier === tier.id}
-                  onChange={() => onSelect(tier.id)}
-                  aria-labelledby={`difficulty-${tier.id}-label difficulty-${tier.id}-budget`}
-                  aria-describedby={`difficulty-${tier.id}-details`}
-                />
-                <span className="mode-option-copy">
-                  <span className="mode-option-heading">
-                    <span className="mode-option-title" id={`difficulty-${tier.id}-label`}>{tier.label}</span>
-                    <span className="mode-option-budget" id={`difficulty-${tier.id}-budget`}>{puzzle.attemptLimits[tier.id]} swaps</span>
+            {difficultyTierConfigs.map((tier) => {
+              const finished = Boolean(completions[tier.id]);
+              const statusId = `difficulty-${tier.id}-status`;
+              return (
+                <label
+                  className={`mode-option${selectedTier === tier.id ? ' is-selected' : ''}${finished ? ' is-finished' : ''}`}
+                  htmlFor={`difficulty-${tier.id}`}
+                  key={tier.id}
+                >
+                  <input
+                    type="radio"
+                    id={`difficulty-${tier.id}`}
+                    name="difficulty"
+                    value={tier.id}
+                    checked={selectedTier === tier.id}
+                    onChange={() => onSelect(tier.id)}
+                    aria-labelledby={`difficulty-${tier.id}-label difficulty-${tier.id}-budget${finished ? ` ${statusId}` : ''}`}
+                    aria-describedby={`difficulty-${tier.id}-details`}
+                  />
+                  <span className="mode-option-copy">
+                    <span className="mode-option-heading">
+                      <span className="mode-option-title" id={`difficulty-${tier.id}-label`}>{tier.label}</span>
+                      <span className="mode-option-meta">
+                        <span className="mode-option-budget" id={`difficulty-${tier.id}-budget`}>{puzzle.attemptLimits[tier.id]} swaps</span>
+                        {finished && <span className="mode-option-status" id={statusId}>Finished</span>}
+                      </span>
+                    </span>
+                    <span className="mode-option-description" id={`difficulty-${tier.id}-details`}>{tier.description}</span>
                   </span>
-                  <span className="mode-option-description" id={`difficulty-${tier.id}-details`}>{tier.description}</span>
-                </span>
-              </label>
-            ))}
+                </label>
+              );
+            })}
           </fieldset>
-          <button className="start-puzzle" type="button" onClick={onStart}>Start puzzle</button>
+          <button className="start-puzzle" type="button" onClick={onStart}>
+            {completions[selectedTier] ? 'Review finished puzzle' : 'Start puzzle'}
+          </button>
         </section>
       </main>
       <GameFooter releaseDate={releaseDate} />
@@ -118,14 +153,20 @@ function PuzzleRound({
   tier,
   release,
   restoredProgress,
+  restoredCompletion,
   cachedCopy,
   progressRepository,
+  onComplete,
+  onChooseDifficulty,
 }: {
   readonly tier: DifficultyTierConfig;
   readonly release: DailyPuzzleRelease;
   readonly restoredProgress: SavedPuzzleProgressV1 | null;
+  readonly restoredCompletion: SavedPuzzleCompletionV1 | null;
   readonly cachedCopy: boolean;
   readonly progressRepository: PuzzleProgressRepository;
+  readonly onComplete: (completion: SavedPuzzleCompletionV1) => void;
+  readonly onChooseDifficulty: () => void;
 }) {
   const puzzle = useMemo(() => buildDifficultyPuzzle(release.puzzle, tier.id), [release.puzzle, tier.id]);
   const attemptLimit = release.puzzle.attemptLimits[tier.id];
@@ -133,14 +174,20 @@ function PuzzleRound({
     () => createPuzzleEngine(puzzle, { sameAppearance, attemptLimit }),
     [puzzle, attemptLimit],
   );
+  const savedState = restoredCompletion ?? restoredProgress;
   const [state, dispatch] = useReducer(
     engine.reduce,
-    restoredProgress,
-    (saved) => saved ? engine.restore(saved) ?? engine.initialize() : engine.initialize(),
+    savedState,
+    (saved) => {
+      if (!saved) return engine.initialize();
+      return (isCompletionSnapshot(saved) ? engine.restoreCompletion(saved) : engine.restore(saved)) ?? engine.initialize();
+    },
   );
   const checkpointState = useRef(state);
   const timer = useRef(createActiveSolveTimer());
-  const [activeElapsedMilliseconds, setActiveElapsedMilliseconds] = useState<number | null>(null);
+  const [activeElapsedMilliseconds, setActiveElapsedMilliseconds] = useState<number | null>(
+    restoredCompletion?.elapsedMilliseconds ?? null,
+  );
   const [shareFeedback, setShareFeedback] = useState('');
   const won = state.status === 'won';
   const lost = state.status === 'lost';
@@ -204,6 +251,14 @@ function PuzzleRound({
   }, [progressRepository, release.puzzleId, tier.id]);
 
   useEffect(() => {
+    if (restoredCompletion) {
+      const now = performance.now();
+      timer.current = stopActiveSolveTimer(
+        resumeActiveSolveTimer(restoredCompletion.elapsedMilliseconds, true, now, false),
+        now,
+      );
+      return;
+    }
     if (!restoredProgress) return;
     timer.current = resumeActiveSolveTimer(
       restoredProgress.elapsedMilliseconds,
@@ -211,7 +266,7 @@ function PuzzleRound({
       performance.now(),
       document.visibilityState === 'visible',
     );
-  }, [restoredProgress]);
+  }, [restoredCompletion, restoredProgress]);
 
   useEffect(() => {
     const checkpoint = (now: number) => {
@@ -253,8 +308,20 @@ function PuzzleRound({
       if (nextState.status !== 'playing') {
         const stopped = stopActiveSolveTimer(timer.current, now);
         timer.current = stopped;
-        setActiveElapsedMilliseconds(getActiveSolveMilliseconds(stopped, now));
+        const elapsedMilliseconds = getActiveSolveMilliseconds(stopped, now);
+        setActiveElapsedMilliseconds(elapsedMilliseconds);
         progressRepository.clear();
+        onComplete({
+          version: 1,
+          puzzleId: release.puzzleId,
+          tierId: tier.id,
+          board: nextState.board,
+          attemptsUsed: nextState.attemptsUsed,
+          hintUsed: nextState.hintUsed,
+          hintedPositions: nextState.hintedPositions,
+          status: nextState.status,
+          elapsedMilliseconds,
+        });
       } else {
         saveProgress(nextState, now);
       }
@@ -317,6 +384,11 @@ function PuzzleRound({
                   </button>
                   <span className="result-share-feedback" aria-live="polite" aria-atomic="true">{shareFeedback}</span>
                 </div>
+                <div className="result-actions">
+                  <button className="choose-difficulty" type="button" onClick={onChooseDifficulty}>
+                    Choose another difficulty
+                  </button>
+                </div>
               </div>
             )}
             <div className={`game-feedback${won ? ' complete-feedback' : ''}${lost ? ' failed-feedback' : ''}`}>
@@ -369,15 +441,35 @@ export function PuzzleGame() {
     setItem: (key, value) => window.localStorage.setItem(key, value),
     removeItem: (key) => window.localStorage.removeItem(key),
   }));
+  const [completionRepository] = useState(() => createPuzzleCompletionRepository({
+    getItem: (key) => window.localStorage.getItem(key),
+    setItem: (key, value) => window.localStorage.setItem(key, value),
+    removeItem: (key) => window.localStorage.removeItem(key),
+  }));
   const [selectedTier, setSelectedTier] = useState<DifficultyTierId>('medium');
   const [started, setStarted] = useState(false);
   const [release, setRelease] = useState<DailyPuzzleRelease | null>(null);
   const [releaseSource, setReleaseSource] = useState<'network' | 'cache'>('network');
   const [restoredProgress, setRestoredProgress] = useState<SavedPuzzleProgressV1 | null>(null);
+  const [reviewCompletion, setReviewCompletion] = useState<SavedPuzzleCompletionV1 | null>(null);
+  const [completions, setCompletions] = useState<PuzzleCompletionsByTier>({});
   const [loadingError, setLoadingError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const tier = getDifficultyTierConfig(selectedTier);
+  const handleCompletion = useCallback((completion: SavedPuzzleCompletionV1) => {
+    completionRepository.save(completion);
+    setCompletions((previous) => ({ ...previous, [completion.tierId]: completion }));
+    setRestoredProgress(null);
+    setReviewCompletion(null);
+    setSelectedTier(completion.tierId);
+    setStarted(true);
+  }, [completionRepository]);
+  const chooseAnotherDifficulty = useCallback(() => {
+    setRestoredProgress(null);
+    setReviewCompletion(null);
+    setStarted(false);
+  }, []);
 
   const fetchToday = useCallback((signal: AbortSignal) => createDailyPuzzleReleaseLoader({
     fetcher: (input, init) => fetch(input, init),
@@ -388,9 +480,13 @@ export function PuzzleGame() {
     const dailyLoad = await fetchToday(signal);
     if (!dailyLoad) throw new Error('Daily puzzle is unavailable.');
 
+    const savedCompletions = validatePuzzleCompletions(
+      dailyLoad.release,
+      completionRepository.load(dailyLoad.release.puzzleId),
+    );
     const saved = progressRepository.load();
     if (saved) {
-      if (dailyLoad.release.puzzleId === saved.puzzleId) {
+      if (dailyLoad.release.puzzleId === saved.puzzleId && !savedCompletions[saved.tierId]) {
         const savedTier = getDifficultyTierConfig(saved.tierId);
         const savedPuzzle = buildDifficultyPuzzle(dailyLoad.release.puzzle, savedTier.id);
         const savedEngine = createPuzzleEngine(savedPuzzle, {
@@ -401,6 +497,7 @@ export function PuzzleGame() {
           return {
             release: dailyLoad.release,
             restoredProgress: saved,
+            completions: savedCompletions,
             source: dailyLoad.source,
           };
         }
@@ -408,8 +505,8 @@ export function PuzzleGame() {
       progressRepository.clear();
     }
 
-    return { release: dailyLoad.release, restoredProgress: null, source: dailyLoad.source };
-  }, [fetchToday, progressRepository]);
+    return { release: dailyLoad.release, restoredProgress: null, completions: savedCompletions, source: dailyLoad.source };
+  }, [completionRepository, fetchToday, progressRepository]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -417,6 +514,9 @@ export function PuzzleGame() {
       setRelease(loaded.release);
       setReleaseSource(loaded.source);
       setRestoredProgress(loaded.restoredProgress);
+      setReviewCompletion(null);
+      setCompletions(loaded.completions);
+      if (loaded.restoredProgress) setSelectedTier(loaded.restoredProgress.tierId);
       setLoadingError(false);
     }).catch(() => {
       if (!controller.signal.aborted) {
@@ -487,8 +587,11 @@ export function PuzzleGame() {
       tier={restoredTier}
       release={release}
       restoredProgress={restoredProgress}
+      restoredCompletion={null}
       cachedCopy={releaseSource === 'cache'}
       progressRepository={progressRepository}
+      onComplete={handleCompletion}
+      onChooseDifficulty={chooseAnotherDifficulty}
     />;
   }
   return started
@@ -497,15 +600,22 @@ export function PuzzleGame() {
       tier={tier}
       release={release}
       restoredProgress={null}
+      restoredCompletion={reviewCompletion}
       cachedCopy={releaseSource === 'cache'}
       progressRepository={progressRepository}
+      onComplete={handleCompletion}
+      onChooseDifficulty={chooseAnotherDifficulty}
     />
     : <ModeSelection
       selectedTier={selectedTier}
       puzzle={release.puzzle}
       releaseDate={release.releaseDate}
       cachedCopy={releaseSource === 'cache'}
+      completions={completions}
       onSelect={setSelectedTier}
-      onStart={() => setStarted(true)}
+      onStart={() => {
+        setReviewCompletion(completions[selectedTier] ?? null);
+        setStarted(true);
+      }}
     />;
 }

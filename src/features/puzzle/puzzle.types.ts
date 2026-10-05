@@ -55,6 +55,14 @@ export interface SavedPuzzleProgressV1 extends RestorableGameState {
   readonly elapsedMilliseconds: number;
 }
 
+export interface SavedPuzzleCompletionV1 extends RestorableGameState {
+  readonly version: 1;
+  readonly puzzleId: string;
+  readonly tierId: DifficultyTierId;
+  readonly status: 'won' | 'lost';
+  readonly elapsedMilliseconds: number;
+}
+
 export type GameAction =
   | { readonly type: 'activate'; readonly position: number }
   | { readonly type: 'cancel' }

@@ -88,8 +88,10 @@ h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(32px, 4.5v
 .mode-option:focus-within { outline: 3px dashed #102f29; outline-offset: 3px; }
 .mode-option-copy { display: grid; gap: 5px; }
 .mode-option-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; cursor: pointer; }
+.mode-option-meta { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
 .mode-option-title { color: #263f38; font-family: Georgia, serif; font-size: 19px; }
 .mode-option-budget { color: var(--teal); font-size: 11px; font-weight: 700; }
+.mode-option-status { border: 1px solid #91ae94; border-radius: 3px; padding: 3px 5px; color: #183f37; background: #e7eee3; font-size: 8px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
 .mode-option-description { color: var(--muted); font-size: 10px; line-height: 1.5; }
 .start-puzzle { display: block; min-height: 48px; min-width: 190px; margin: 21px auto 0; padding: 10px 24px; border: 1px solid #19463e; border-radius: 4px; background: var(--teal); color: #fffdf5; font-size: 13px; font-weight: 600; cursor: pointer; }
 .start-puzzle:hover { background: #19463e; }
@@ -101,6 +103,8 @@ h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(32px, 4.5v
 .result-share-button { min-height: 44px; padding: 5px 13px; border: 1px solid var(--teal); border-radius: 3px; background: #fffdf5; color: var(--teal); font-size: 11px; font-weight: 600; cursor: pointer; }
 .result-share-feedback { color: var(--muted); font-size: 11px; }
 .result-share-feedback:empty { display: none; }
+.result-actions { flex-basis: 100%; display: flex; justify-content: center; margin-top: 2px; }
+.choose-difficulty { min-height: 44px; padding: 5px 13px; border: 1px solid #8e9984; border-radius: 3px; background: #fffdf5; color: var(--teal); font-size: 11px; font-weight: 600; cursor: pointer; }
 .lost-result strong, .lost-result span { color: #8b3024; }
 .how-to-play { display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 24px; margin: 23px auto 0; max-width: 832px; }
 .how-to-play p { display: flex; align-items: center; gap: 9px; font-size: 11px; margin: 0; }

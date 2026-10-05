@@ -150,6 +150,66 @@ describe('player transitions', () => {
     expect(engine.restore({ board: target, attemptsUsed: 0, hintUsed: false, hintedPositions: null })).toBeNull();
   });
 
+  it('restores a completed win or loss as a terminal state', () => {
+    const won = engine.restoreCompletion({
+      board: target,
+      attemptsUsed: 10,
+      hintUsed: true,
+      hintedPositions: null,
+      status: 'won',
+    });
+    const lost = engine.restoreCompletion({
+      board: start,
+      attemptsUsed: 15,
+      hintUsed: false,
+      hintedPositions: null,
+      status: 'lost',
+    });
+
+    expect(won).toEqual({
+      board: target,
+      selectedPosition: null,
+      status: 'won',
+      attemptsUsed: 10,
+      attemptLimit: 15,
+      hintUsed: true,
+      hintedPositions: null,
+    });
+    expect(lost).toEqual({
+      board: start,
+      selectedPosition: null,
+      status: 'lost',
+      attemptsUsed: 15,
+      attemptLimit: 15,
+      hintUsed: false,
+      hintedPositions: null,
+    });
+  });
+
+  it('rejects terminal snapshots whose outcome disagrees with board or attempt count', () => {
+    expect(engine.restoreCompletion({
+      board: start,
+      attemptsUsed: 10,
+      hintUsed: false,
+      hintedPositions: null,
+      status: 'won',
+    })).toBeNull();
+    expect(engine.restoreCompletion({
+      board: target,
+      attemptsUsed: 15,
+      hintUsed: false,
+      hintedPositions: null,
+      status: 'lost',
+    })).toBeNull();
+    expect(engine.restoreCompletion({
+      board: start,
+      attemptsUsed: 14,
+      hintUsed: false,
+      hintedPositions: null,
+      status: 'lost',
+    })).toBeNull();
+  });
+
   it('lets callers supply the appearance policy without changing rules', () => {
     const byMotif = createPuzzleEngine(puzzle, { sameAppearance: (left, right) => left.motif === right.motif, attemptLimit: 15 });
     const selected = byMotif.reduce(byMotif.initialize(), { type: 'activate', position: 0 });

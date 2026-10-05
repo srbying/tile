@@ -25,7 +25,8 @@ const solvePuzzle = async (page: Page) => {
 };
 
 test.beforeEach(async ({ page }) => {
-  const puzzle = { schemaVersion: 1, ...samplePuzzle, attemptLimits: { easy: 15, medium: 13, hard: 10 } };
+  const puzzleId = 'daily-v1-2026-09-29-0-0';
+  const puzzle = { schemaVersion: 1, ...samplePuzzle, id: puzzleId, attemptLimits: { easy: 15, medium: 13, hard: 10 } };
   const release = { puzzleId: puzzle.id, releaseDate: '2026-09-29', generatorVersion: 1, puzzle };
   await page.clock.setFixedTime(new Date('2026-09-29T12:00:00.000Z'));
   await page.route('**/api/puzzles/today', (route) => route.fulfill({
@@ -88,7 +89,7 @@ test('starts a readable target and playable 36-cell board', async ({ page }) => 
   await expect(page.getByText('13 of 13 swaps remaining', { exact: true })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Target arrangement' }).getByRole('listitem')).toHaveCount(36);
   await expect(board(page).getByRole('button')).toHaveCount(36);
-  await expect(cell(page, 1, 1)).toHaveAccessibleName(/Row 1, column 1: teal nested diamonds, bold lines/);
+  await expect(cell(page, 1, 1)).toHaveAccessibleName(/Row 1, column 1: teal Nested diamonds, bold lines/);
   await expect(cell(page, 1, 1)).toHaveAttribute('aria-pressed', 'false');
   await expect(cell(page, 1, 1)).toHaveAttribute('aria-disabled', 'false');
 });
@@ -372,6 +373,95 @@ test('Hard mode wins on its tenth and final attempt', async ({ page }) => {
   expect(await page.evaluate(() => localStorage.getItem('tile-puzzle-progress:v1'))).toBeNull();
 });
 
+test('reviews a finished win after reload and keeps sharing available', async ({ page }) => {
+  await page.addInitScript(() => {
+    const testWindow = window as unknown as { __copiedText?: string };
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async (text: string) => { testWindow.__copiedText = text; } },
+    });
+  });
+  await startGame(page, 'Medium');
+  await solvePuzzle(page);
+
+  const solvedArtwork = await artworks(page);
+  const activeTime = await page.locator('.round-result').getByText(/^Active time:/).innerText();
+  await page.getByRole('button', { name: 'Choose another difficulty', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Choose your mode' })).toBeVisible();
+  await expect(page.locator('.mode-option').filter({ hasText: 'Medium' }).getByText('Finished', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Review finished puzzle', exact: true })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Choose your mode' })).toBeVisible();
+  await page.getByRole('radio', { name: /^Medium\b/ }).check();
+  await page.getByRole('button', { name: 'Review finished puzzle', exact: true }).click();
+
+  await expect(board(page)).toHaveClass(/is-won/);
+  await expect(page.getByText('10 of 13 swaps used', { exact: true })).toBeVisible();
+  await expect(page.locator('.round-result').getByText(/^Active time:/)).toHaveText(activeTime);
+  expect(await artworks(page)).toEqual(solvedArtwork);
+  await page.getByRole('button', { name: 'Copy result', exact: true }).click();
+  await expect(page.locator('.result-share-feedback')).toHaveText('Result copied to clipboard.');
+  expect(await page.evaluate(() => (window as unknown as { __copiedText?: string }).__copiedText))
+    .toBe('Daily Tile-Swap Puzzle · 2026-09-29\nSolved · Medium mode · 10/13 swaps · Unassisted');
+
+  await page.getByRole('button', { name: 'Choose another difficulty', exact: true }).click();
+  await page.getByRole('radio', { name: /^Easy\b/ }).check();
+  await expect(page.getByRole('button', { name: 'Start puzzle', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
+  await expect(page.getByText('Easy mode', { exact: true })).toBeVisible();
+});
+
+test('locks a finished loss while leaving other difficulties playable', async ({ page }) => {
+  await startGame(page, 'Hard');
+  for (let attempt = 0; attempt < 10; attempt++) {
+    await cell(page, 1, 1).click();
+    await cell(page, 1, 2).click();
+  }
+  await page.getByRole('button', { name: 'Choose another difficulty', exact: true }).click();
+
+  await expect(page.locator('.mode-option').filter({ hasText: 'Hard' }).getByText('Finished', { exact: true })).toBeVisible();
+  await page.getByRole('radio', { name: /^Medium\b/ }).check();
+  await expect(page.getByRole('button', { name: 'Start puzzle', exact: true })).toBeEnabled();
+  await page.getByRole('radio', { name: /^Hard\b/ }).check();
+  await expect(page.getByRole('button', { name: 'Review finished puzzle', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Review finished puzzle', exact: true }).click();
+
+  await expect(board(page)).toHaveClass(/is-lost/);
+  await expect(page.getByText('10 of 10 swaps used', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Choose another difficulty', exact: true }).click();
+  await page.getByRole('radio', { name: /^Medium\b/ }).check();
+  await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
+  await expect(page.getByText('Medium mode', { exact: true })).toBeVisible();
+});
+
+test('makes all difficulties playable for a new daily puzzle', async ({ page }) => {
+  await startGame(page, 'Medium');
+  await solvePuzzle(page);
+  await page.getByRole('button', { name: 'Choose another difficulty', exact: true }).click();
+
+  const nextPuzzleId = 'daily-v1-2026-09-30-0-0';
+  const nextPuzzle = { ...samplePuzzle, id: nextPuzzleId };
+  const nextRelease = {
+    puzzleId: nextPuzzleId,
+    releaseDate: '2026-09-30',
+    generatorVersion: 1,
+    puzzle: { schemaVersion: 1, ...nextPuzzle, attemptLimits: { easy: 15, medium: 13, hard: 10 } },
+  };
+  await page.unroute('**/api/puzzles/today');
+  await page.route('**/api/puzzles/today', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify(nextRelease),
+  }));
+  await page.reload();
+
+  await expect(page.getByText('DAILY Nº 2026-09-30')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Start puzzle', exact: true })).toBeEnabled();
+  await expect(page.getByText('Finished', { exact: true })).toHaveCount(0);
+});
+
 test('reload before a committed move returns to mode picker and raises no browser errors', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -396,7 +486,7 @@ test('reload resumes saved mode, board, attempts, hint, and active time', async 
     attemptsUsed: 1,
     hintUsed: true,
   });
-  expect(savedBeforeReload.puzzleId).toBe(samplePuzzle.id);
+  expect(savedBeforeReload.puzzleId).toBe('daily-v1-2026-09-29-0-0');
 
   await page.waitForTimeout(1_050);
   const puzzleRequests: string[] = [];

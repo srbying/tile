@@ -151,7 +151,8 @@ async function expectStaticFeedback(page: Page, phase: string) {
 }
 
 test.beforeEach(async ({ page }) => {
-  const puzzle = { schemaVersion: 1, ...samplePuzzle, attemptLimits: { easy: 15, medium: 13, hard: 10 } };
+  const puzzleId = 'daily-v1-2026-09-29-0-0';
+  const puzzle = { schemaVersion: 1, ...samplePuzzle, id: puzzleId, attemptLimits: { easy: 15, medium: 13, hard: 10 } };
   const release = { puzzleId: puzzle.id, releaseDate: '2026-09-29', generatorVersion: 1, puzzle };
   await page.clock.setFixedTime(new Date('2026-09-29T12:00:00.000Z'));
   await page.route('**/api/puzzles/today', (route) => route.fulfill({
