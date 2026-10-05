@@ -12,7 +12,7 @@ test('serves a stable generated daily puzzle and starts gameplay with it', async
     generatorVersion: number;
     puzzle: { id: string; target: unknown[]; start: unknown[]; attemptLimits: Record<string, number> };
   };
-  expect(release.generatorVersion).toBe(1);
+  expect(release.generatorVersion).toBe(2);
   expect(release.puzzleId).toBe(release.puzzle.id);
   expect(release.puzzle.target).toHaveLength(36);
   expect(release.puzzle.start).toHaveLength(36);
@@ -38,7 +38,26 @@ test('serves a stable generated daily puzzle and starts gameplay with it', async
   await expect(page.getByRole('group', { name: 'Your mosaic' }).getByRole('button')).toHaveCount(36);
 });
 
-test('loads the new release at midnight and drops the previous day’s saved progress', async ({ page }) => {
+test('replays v1 puzzle IDs after the v2 generator rollout', async ({ page }) => {
+  const response = await page.request.get('/api/puzzles/daily-v1-2026-09-29-0-0');
+
+  expect(response.status()).toBe(200);
+  const release = await response.json() as {
+    puzzleId: string;
+    generatorVersion: number;
+    puzzle: { id: string; target: unknown[]; start: unknown[] };
+  };
+  expect(release.generatorVersion).toBe(1);
+  expect(release.puzzleId).toBe('daily-v1-2026-09-29-0-0');
+  expect(release.puzzle.id).toBe(release.puzzleId);
+  expect(release.puzzle.target).toHaveLength(36);
+  expect(release.puzzle.start).toHaveLength(36);
+});
+
+test.describe('release date rollover', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('loads the new release at midnight and drops the previous day’s saved progress', async ({ page }) => {
   const response = await page.request.get('/api/puzzles/today');
   const baseRelease = await response.json() as {
     puzzleId: string;
@@ -48,7 +67,7 @@ test('loads the new release at midnight and drops the previous day’s saved pro
     [key: string]: unknown;
   };
   const withDate = (date: string) => {
-    const puzzleId = `daily-test-${date}`;
+    const puzzleId = `daily-v2-${date}-0-0`;
     return {
       ...baseRelease,
       puzzleId,
@@ -80,6 +99,7 @@ test('loads the new release at midnight and drops the previous day’s saved pro
   await expect(page.getByText('DAILY Nº 2026-10-01')).toBeVisible();
   await expect(page.getByText('13 of 13 swaps remaining', { exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('tile-puzzle-progress:v1'))).toBeNull();
+  });
 });
 
 test('retries a stale cached release when the page resumes after midnight', async ({ page, browserName }) => {
@@ -93,7 +113,7 @@ test('retries a stale cached release when the page resumes after midnight', asyn
     [key: string]: unknown;
   };
   const withDate = (date: string) => {
-    const puzzleId = `daily-test-${date}`;
+    const puzzleId = `daily-v2-${date}-0-0`;
     return {
       ...baseRelease,
       puzzleId,

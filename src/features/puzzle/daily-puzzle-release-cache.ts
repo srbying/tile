@@ -63,7 +63,9 @@ export function parseDailyPuzzleRelease(value: unknown): DailyPuzzleRelease | nu
   const release = value as Record<string, unknown>;
   const puzzle = parsePuzzleCandidate(release.puzzle);
   if (!puzzle || release.puzzleId !== puzzle.id || typeof release.releaseDate !== 'string'
-    || release.generatorVersion !== 1 || !validatePuzzleCandidate(puzzle).valid) return null;
+    || (release.generatorVersion !== 1 && release.generatorVersion !== 2)
+    || !release.puzzleId.startsWith(`daily-v${release.generatorVersion}-`)
+    || !validatePuzzleCandidate(puzzle).valid) return null;
   return {
     puzzleId: release.puzzleId,
     releaseDate: release.releaseDate,

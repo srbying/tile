@@ -1,5 +1,15 @@
-export type Motif = 'meander' | 'chevron' | 'diamond';
-export type TileColor = 'teal' | 'terracotta';
+export type Motif =
+  | 'meander' | 'chevron' | 'diamond'
+  | 'rosette' | 'sunburst' | 'scallop'
+  | 'wave' | 'lattice' | 'pinwheel'
+  | 'compass' | 'lantern' | 'interlock'
+  | 'leaf' | 'shell' | 'braid'
+  | 'hex-blossom' | 'fan' | 'prism'
+  | 'crescent' | 'lotus' | 'mosaic-cross'
+  | 'squiggle-sway' | 'squiggle-loops' | 'squiggle-coil'
+  | 'waveform-sine' | 'waveform-crest' | 'waveform-swell'
+  | 'waveform-flick' | 'waveform-double' | 'waveform-shelf';
+export type TileColor = 'teal' | 'terracotta' | 'indigo' | 'ochre';
 export type QuarterTurn = 0 | 90 | 180 | 270;
 export type DifficultyTierId = 'easy' | 'medium' | 'hard';
 

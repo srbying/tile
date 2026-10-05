@@ -37,6 +37,17 @@ describe('puzzle progress repository', () => {
     expect(repository.load()).toEqual(progress);
   });
 
+  it('restores progress whose saved board uses the expanded motif catalog', () => {
+    const storage = new MemoryStorage();
+    const repository = createPuzzleProgressRepository(storage);
+    const board = [...progress.board];
+    board[0] = { ...board[0]!, motif: 'waveform-sine', color: 'indigo' };
+
+    repository.save({ ...progress, board });
+
+    expect(repository.load()?.board).toEqual(board);
+  });
+
   it('discards malformed or unsupported saves', () => {
     const storage = new MemoryStorage();
     const repository = createPuzzleProgressRepository(storage);
