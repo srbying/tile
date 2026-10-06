@@ -6,6 +6,13 @@ const board = (page: Page) => page.getByRole('group', { name: 'Your mosaic', exa
 const cell = (page: Page, row: number, column: number) =>
   board(page).getByRole('button', { name: new RegExp(`^Row ${row}, column ${column}:`) });
 const artworks = (page: Page) => board(page).locator('svg').evaluateAll((elements) => elements.map((element) => element.innerHTML));
+const visuallyInPlaceCount = async (page: Page) => {
+  const [current, target] = await Promise.all([
+    artworks(page),
+    page.locator('.target-grid svg').evaluateAll((elements) => elements.map((element) => element.innerHTML)),
+  ]);
+  return current.reduce((count, artwork, position) => count + Number(artwork === target[position]), 0);
+};
 const startGame = async (page: Page, mode?: 'Easy' | 'Medium' | 'Hard') => {
   if (mode) await page.getByRole('radio', { name: new RegExp(`^${mode}\\b`) }).check();
   await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
@@ -94,6 +101,32 @@ test('starts a readable target and playable 36-cell board', async ({ page }) => 
   await expect(cell(page, 1, 1)).toHaveAttribute('aria-disabled', 'false');
 });
 
+test('reports how many positions match the target through swaps and reloads', async ({ page }) => {
+  await startGame(page);
+  const countText = page.getByText(/^\d+ of 36 tiles in place$/);
+  const initialCount = await visuallyInPlaceCount(page);
+  await expect(countText).toHaveText(`${initialCount} of 36 tiles in place`);
+
+  const [firstRow, firstColumn, secondRow, secondColumn] = solution[0];
+  await cell(page, firstRow, firstColumn).click();
+  await cell(page, secondRow, secondColumn).click();
+  const countAfterSwap = await visuallyInPlaceCount(page);
+  expect(countAfterSwap).toBeGreaterThan(initialCount);
+  await expect(countText).toHaveText(`${countAfterSwap} of 36 tiles in place`);
+  await expect(page.getByRole('status')).toContainText(`${countAfterSwap} of 36 tiles in place`);
+
+  await page.reload();
+  await expect(board(page)).toBeVisible();
+  await expect(countText).toHaveText(`${countAfterSwap} of 36 tiles in place`);
+
+  for (const [rowA, columnA, rowB, columnB] of solution.slice(1)) {
+    await cell(page, rowA, columnA).click();
+    await cell(page, rowB, columnB).click();
+  }
+  await expect(page.getByText('36 of 36 tiles in place', { exact: true })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('36 of 36 tiles in place');
+});
+
 test('selects, cancels, reselects, and swaps whole artwork with pointer or touch', async ({ page, isMobile }) => {
   await startGame(page);
   const before = await artworks(page);
@@ -121,22 +154,39 @@ test('selects, cancels, reselects, and swaps whole artwork with pointer or touch
   await expect(board(page).getByRole('button', { pressed: true })).toHaveCount(0);
 });
 
-test('keyboard focus is row-major, selection is separate, and Escape cancels', async ({ page }) => {
+test('navigates the board with arrow keys and keeps Tab for entering and leaving', async ({ page, isMobile }) => {
   await startGame(page);
   const before = await artworks(page);
-  await cell(page, 1, 1).focus();
+  await page.getByRole('link', { name: 'Compare difficulty art' }).focus();
+  await page.keyboard.press('Tab');
+  if (isMobile) {
+    const targetZoomIsFocused = await page.getByRole('button', { name: 'View target larger' })
+      .evaluate((button) => button === document.activeElement);
+    if (targetZoomIsFocused) await page.keyboard.press('Tab');
+  }
+  await expect(cell(page, 1, 1)).toBeFocused();
+  expect(await board(page).getByRole('button').evaluateAll((buttons) =>
+    buttons.filter((button) => (button as HTMLButtonElement).tabIndex === 0).length,
+  )).toBe(1);
+
   await page.keyboard.press('Enter');
   await expect(cell(page, 1, 1)).toHaveAttribute('aria-pressed', 'true');
-  await page.keyboard.press('Tab');
+  await page.keyboard.press('ArrowRight');
   await expect(cell(page, 1, 2)).toBeFocused();
+  expect(await board(page).getByRole('button').evaluateAll((buttons) =>
+    buttons.filter((button) => (button as HTMLButtonElement).tabIndex === 0).length,
+  )).toBe(1);
   await expect(cell(page, 1, 1)).toHaveAttribute('aria-pressed', 'true');
   expect(await artworks(page)).toEqual(before);
+  await expect(page.getByText('13 of 13 swaps remaining', { exact: true })).toBeVisible();
+
   await page.keyboard.press('Escape');
   await expect(board(page).getByRole('button', { pressed: true })).toHaveCount(0);
   expect(await artworks(page)).toEqual(before);
   await page.keyboard.press('Space');
   await expect(cell(page, 1, 2)).toHaveAttribute('aria-pressed', 'true');
-  await page.keyboard.press('Tab');
+  await page.keyboard.press('ArrowRight');
+  await expect(cell(page, 1, 3)).toBeFocused();
   await page.keyboard.press('Enter');
   const after = await artworks(page);
   expect(after[1]).toBe(before[2]);
@@ -144,11 +194,38 @@ test('keyboard focus is row-major, selection is separate, and Escape cancels', a
   await expect(cell(page, 1, 3)).toBeFocused();
   const focusStyle = await cell(page, 1, 3).evaluate((element) => getComputedStyle(element).outlineStyle);
   expect(focusStyle).toBe('dashed');
+
+  await page.keyboard.press('ArrowDown');
+  await expect(cell(page, 2, 3)).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(cell(page, 2, 2)).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(cell(page, 1, 2)).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(cell(page, 1, 1)).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(cell(page, 1, 1)).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(cell(page, 1, 1)).toBeFocused();
+
+  for (let step = 0; step < 5; step++) await page.keyboard.press('ArrowRight');
+  for (let step = 0; step < 5; step++) await page.keyboard.press('ArrowDown');
+  await expect(cell(page, 6, 6)).toBeFocused();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowDown');
+  await expect(cell(page, 6, 6)).toBeFocused();
+  expect(await artworks(page)).toEqual(after);
+
+  await page.keyboard.press('Tab');
+  expect(await board(page).evaluate((element) => element.contains(document.activeElement))).toBe(false);
+  await page.keyboard.press('Shift+Tab');
+  await expect(cell(page, 6, 6)).toBeFocused();
 });
 
 test('uses one productive hint without consuming a swap and marks the result assisted', async ({ page, isMobile }) => {
   await startGame(page);
   const before = await artworks(page);
+  const initialInPlaceCount = await visuallyInPlaceCount(page);
   await expect(page.locator('#hint-instruction')).toHaveCount(1);
   await expect(page.locator('#hint-instruction')).toBeEmpty();
   await page.getByRole('button', { name: 'Use hint', exact: true }).click();
@@ -159,6 +236,7 @@ test('uses one productive hint without consuming a swap and marks the result ass
   await expect(page.getByText(/Hint: Swap Row 1, column 1 with Row 3, column 3/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Use hint', exact: true })).toBeDisabled();
   await expect(page.getByText('13 of 13 swaps remaining', { exact: true })).toBeVisible();
+  await expect(page.getByText(`${initialInPlaceCount} of 36 tiles in place`, { exact: true })).toBeVisible();
   expect(await artworks(page)).toEqual(before);
   expect(await hinted.evaluateAll((elements) => elements.map((element) => Number(element.getAttribute('data-position')))))
     .toEqual([0, 14]);
@@ -287,7 +365,7 @@ for (const input of ['pointer', 'keyboard'] as const) {
         else await tile.click();
       }
     }
-    await expect(page.getByRole('status')).toHaveText('✓Puzzle complete. The pattern is restored.');
+    await expect(page.getByRole('status')).toHaveText('✓36 of 36 tiles in place. Puzzle complete. The pattern is restored.');
     const completed = await artworks(page);
     const target = await page.getByRole('list', { name: 'Target arrangement' }).locator('svg')
       .evaluateAll((elements) => elements.map((element) => element.innerHTML));
@@ -299,8 +377,9 @@ for (const input of ['pointer', 'keyboard'] as const) {
     await expect(board(page).getByRole('button', { disabled: true })).toHaveCount(36);
     await expect(board(page)).toHaveClass(/is-won/);
     await cell(page, 1, 1).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(cell(page, 1, 2)).toBeFocused();
     await page.keyboard.press('Space');
-    await page.keyboard.press('Tab');
     await page.keyboard.press('Enter');
     // Real pointer events still hit aria-disabled controls; the UI must ignore them.
     for (const column of [1, 2]) {
@@ -426,6 +505,10 @@ test('a loss on the final Hard attempt colors and locks the full board', async (
   await expect(board(page)).toHaveClass(/is-lost/);
   await expect(board(page).getByRole('button', { disabled: true })).toHaveCount(36);
   await expect(board(page).locator('.outcome-mark')).toHaveCount(36);
+  const inPlaceCount = await visuallyInPlaceCount(page);
+  expect(inPlaceCount).toBeLessThan(36);
+  await expect(page.getByText(`${inPlaceCount} of 36 tiles in place`, { exact: true })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText(`${inPlaceCount} of 36 tiles in place`);
   expect(await page.evaluate(() => localStorage.getItem('tile-puzzle-progress:v1'))).toBeNull();
 });
 

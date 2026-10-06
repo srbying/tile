@@ -97,7 +97,7 @@ h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(32px, 4.5v
 .mode-option-description { color: var(--muted); font-size: 10px; line-height: 1.5; }
 .start-puzzle { display: block; min-height: 48px; min-width: 190px; margin: 21px auto 0; padding: 10px 24px; border: 1px solid #19463e; border-radius: 4px; background: var(--teal); color: #fffdf5; font-size: 13px; font-weight: 600; cursor: pointer; }
 .start-puzzle:hover { background: #19463e; }
-.attempt-count { margin: 12px 0 0; color: var(--teal); font-size: 12px; font-weight: 600; text-align: center; }
+.attempt-count { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 4px 14px; margin: 12px 0 0; color: var(--teal); font-size: 12px; font-weight: 600; text-align: center; }
 .round-result { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0 0; font-size: 12px; text-align: center; }
 .round-result strong { color: var(--teal); }
 .result-motif { flex-basis: 100%; color: var(--muted); font-family: Georgia, serif; font-style: italic; }

@@ -35,7 +35,7 @@ The browser suite builds the app and starts a local production preview automatic
 - An unfinished round saves locally after swaps and hint use. Reload resumes the same mode, board, attempts, hint state, puzzle ID, and active time. Time while the page is hidden does not count.
 - Each difficulty can be finished once for that New York daily puzzle. Finished modes are marked in the picker and reopen as read-only results that can still be shared; the other modes remain playable.
 - The app shell and latest validated daily release are cached for offline play. Offline copies show their release date; a successful online load replaces the cached release. Future puzzles are not cached.
-- Use Tab / Shift+Tab to move between tiles in row-major order. Enter and Space select or swap; moving focus alone never changes the board.
+- Use Tab / Shift+Tab to enter or leave the board; arrow keys move between tiles. Enter and Space select or swap, and Escape cancels selection. Moving focus alone never changes the board.
 - Every committed swap uses one attempt. Selection and cancellation are free. A correct final swap wins; an incorrect final attempt ends in failure. Both terminal boards remain inspectable and reject further swaps.
 - Active solve timing starts on the first committed swap, pauses while the page is hidden, and stops at win or failure. Results show active time, swaps used and allowed, hint use, and a concise motif explanation.
 - Each day’s puzzle is generated deterministically from the New York calendar date. Every tier has a 10-swap shortest solution, budgets stay at 15 / 13 / 10, and visible targets do not repeat within 30 days.

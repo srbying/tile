@@ -197,13 +197,17 @@ function PuzzleRound({
   const terminal = won || lost;
   const nativeSharingAvailable = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   const attemptsRemaining = state.attemptLimit - state.attemptsUsed;
+  const tilesInPlace = state.board.reduce(
+    (count, tile, position) => count + Number(sameAppearance(tile, puzzle.target[position]!)),
+    0,
+  );
   const selected = state.selectedPosition;
   const message = won
-    ? 'Puzzle complete. The pattern is restored.'
+    ? `${tilesInPlace} of 36 tiles in place. Puzzle complete. The pattern is restored.`
     : lost
-      ? 'No attempts remaining. The pattern was not restored.'
+      ? `${tilesInPlace} of 36 tiles in place. No attempts remaining. The pattern was not restored.`
       : selected === null
-      ? `${attemptsRemaining} of ${state.attemptLimit} swaps remaining. Choose any tile to begin a swap.`
+      ? `${tilesInPlace} of 36 tiles in place. ${attemptsRemaining} of ${state.attemptLimit} swaps remaining. Choose any tile to begin a swap.`
       : `${describePosition(selected)} selected. Choose another tile to swap, or clear your selection.`;
   const hintMessage = state.hintedPositions === null
     ? null
@@ -403,7 +407,10 @@ function PuzzleRound({
               onActivate={activatePosition}
               onCancel={() => dispatch({ type: 'cancel' })}
             />
-            <p className="attempt-count">{attemptsRemaining} of {state.attemptLimit} swaps remaining</p>
+            <p className="attempt-count">
+              <span>{tilesInPlace} of 36 tiles in place</span>
+              <span>{attemptsRemaining} of {state.attemptLimit} swaps remaining</span>
+            </p>
             {terminal && (
               <div className={`round-result${won ? ' won-result' : ' lost-result'}`} aria-label="Round result">
                 <strong>{tier.label} mode</strong>
@@ -488,7 +495,7 @@ function PuzzleRound({
           <p><span className="tip-number">2</span> Pick another. They trade places.</p>
           <p><span className="tip-number">3</span> Bring the pattern together.</p>
         </aside>
-        <p className="keyboard-note" id="keyboard-instruction">Keyboard: Tab to a tile, then Enter or Space to select and swap. Escape clears selection.<br />Tap a selected tile again to cancel. Each swap uses one attempt.</p>
+        <p className="keyboard-note" id="keyboard-instruction">Keyboard: Tab to the board; use arrow keys to move between tiles. Enter or Space selects and swaps; Escape clears selection. Tab or Shift+Tab leaves the board.<br />Moving focus alone never changes the board. Tap a selected tile again to cancel. Each swap uses one attempt.</p>
       </main>
       <GameFooter releaseDate={release.releaseDate} />
     </div>
