@@ -208,7 +208,7 @@ test('focus indicator reaches 3:1 contrast on every tile background', async ({ p
   const cells = board(page).getByRole('button');
   await cells.nth(0).focus();
   await page.keyboard.press('Enter');
-  await page.keyboard.press('Tab');
+  await page.keyboard.press('ArrowRight');
   await expect(cells.nth(1)).toBeFocused();
 
   const { outlineColor, outlineStyle, outlineWidth, boxShadow, backgrounds } = await cells.nth(1).evaluate((element) => ({

@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import { describeTile } from './tile-appearance';
 import { TileArtwork } from './tile-artwork';
 import type { GameState, TileAppearance } from './puzzle.types';
@@ -24,8 +26,42 @@ interface PuzzleBoardProps {
 }
 
 export function PuzzleBoard({ state, onActivate, onCancel }: PuzzleBoardProps) {
-  // Explicit tabIndex keeps buttons in WebKit's Tab order regardless of native defaults.
+  const [focusedPosition, setFocusedPosition] = useState(0);
   const terminal = state.status !== 'playing';
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, position: number) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onCancel();
+      return;
+    }
+
+    let nextPosition = position;
+    switch (event.key) {
+      case 'ArrowUp':
+        if (position >= 6) nextPosition = position - 6;
+        break;
+      case 'ArrowRight':
+        if (position % 6 < 5) nextPosition = position + 1;
+        break;
+      case 'ArrowDown':
+        if (position < 30) nextPosition = position + 6;
+        break;
+      case 'ArrowLeft':
+        if (position % 6 > 0) nextPosition = position - 1;
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    if (nextPosition === position) return;
+    setFocusedPosition(nextPosition);
+    event.currentTarget.parentElement
+      ?.querySelector<HTMLButtonElement>(`button[data-position="${nextPosition}"]`)
+      ?.focus();
+  };
+
   return (
     <fieldset
       className={`tile-grid playable-grid${terminal ? ` is-${state.status}` : ''}`}
@@ -39,7 +75,7 @@ export function PuzzleBoard({ state, onActivate, onCancel }: PuzzleBoardProps) {
           <button
             className={`tile-button${state.selectedPosition === position ? ' is-selected' : ''}${hinted ? ' is-hinted' : ''}`}
             type="button"
-            tabIndex={0}
+            tabIndex={focusedPosition === position ? 0 : -1}
             key={position}
             data-position={position}
             data-hint={hinted ? hintNumber + 1 : undefined}
@@ -47,13 +83,12 @@ export function PuzzleBoard({ state, onActivate, onCancel }: PuzzleBoardProps) {
             aria-describedby={hinted ? 'hint-instruction' : undefined}
             aria-pressed={state.selectedPosition === position}
             aria-disabled={terminal}
-            onClick={() => { if (!terminal) onActivate(position); }}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                event.preventDefault();
-                onCancel();
-              }
+            onFocus={() => setFocusedPosition(position)}
+            onClick={() => {
+              setFocusedPosition(position);
+              if (!terminal) onActivate(position);
             }}
+            onKeyDown={(event) => handleKeyDown(event, position)}
           >
             <TileArtwork tile={tile} />
             {hinted && <span className="hint-mark" aria-hidden="true">{hintNumber + 1}</span>}
