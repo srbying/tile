@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { buildDifficultyPuzzle, difficultyTierConfigs, getDifficultyTierConfig } from './difficulty-preview';
 import type { DifficultyTierId, DifficultyTierConfig } from './difficulty-preview';
 import { createPuzzleEngine } from './puzzle-engine';
@@ -23,11 +24,21 @@ import {
   stopActiveSolveTimer,
 } from './active-solve-timer';
 
-function GameHeader() {
+function GameHeader({ onChooseDifficulty }: { readonly onChooseDifficulty?: () => void } = {}) {
   return (
-    <header className="site-header">
+    <header className={`site-header${onChooseDifficulty ? ' site-header--round' : ''}`}>
       <a className="wordmark" href="/">TILE-SWAP PUZZLE</a>
-      <a className="preview-navigation-link" href="/preview">Compare difficulty art</a>
+      <nav className="site-header-navigation" aria-label="Puzzle navigation">
+        {onChooseDifficulty && (
+          <button className="choose-difficulty-navigation" type="button" onClick={onChooseDifficulty}>
+            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <path d="M16 10H4m0 0 6-6m-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span>Choose difficulty</span>
+          </button>
+        )}
+        <a className="preview-navigation-link" href="/preview">Compare difficulty art</a>
+      </nav>
     </header>
   );
 }
@@ -66,17 +77,55 @@ function ModeSelection({
   releaseDate,
   cachedCopy,
   completions,
+  pausedProgress,
+  focusPrimaryAction,
   onSelect,
   onStart,
+  onResume,
+  onReplacePausedRound,
 }: {
   readonly selectedTier: DifficultyTierId;
   readonly puzzle: DailyPuzzleRelease['puzzle'];
   readonly releaseDate: string;
   readonly cachedCopy: boolean;
   readonly completions: PuzzleCompletionsByTier;
+  readonly pausedProgress: SavedPuzzleProgressV1 | null;
+  readonly focusPrimaryAction: boolean;
   readonly onSelect: (tier: DifficultyTierId) => void;
   readonly onStart: () => void;
+  readonly onResume: () => void;
+  readonly onReplacePausedRound: () => void;
 }) {
+  const [confirmReplacement, setConfirmReplacement] = useState(false);
+  const primaryActionRef = useRef<HTMLButtonElement>(null);
+  const replaceActionRef = useRef<HTMLButtonElement>(null);
+  const selectedTierConfig = getDifficultyTierConfig(selectedTier);
+  const hasPausedRoundForSelectedTier = pausedProgress?.tierId === selectedTier;
+  const selectedTierIsFinished = Boolean(completions[selectedTier]);
+  const requiresReplacementConfirmation = Boolean(pausedProgress)
+    && !hasPausedRoundForSelectedTier
+    && !selectedTierIsFinished;
+
+  useEffect(() => {
+    if (focusPrimaryAction) primaryActionRef.current?.focus({ preventScroll: true });
+  }, [focusPrimaryAction]);
+
+  useEffect(() => {
+    if (confirmReplacement) replaceActionRef.current?.focus({ preventScroll: true });
+  }, [confirmReplacement]);
+
+  const activatePrimaryAction = () => {
+    if (requiresReplacementConfirmation) {
+      setConfirmReplacement(true);
+      return;
+    }
+    if (hasPausedRoundForSelectedTier) {
+      onResume();
+      return;
+    }
+    onStart();
+  };
+
   return (
     <div className="page-shell">
       <GameHeader />
@@ -96,10 +145,11 @@ function ModeSelection({
             <legend className="visually-hidden">Difficulty mode</legend>
             {difficultyTierConfigs.map((tier) => {
               const finished = Boolean(completions[tier.id]);
+              const paused = pausedProgress?.tierId === tier.id;
               const statusId = `difficulty-${tier.id}-status`;
               return (
                 <label
-                  className={`mode-option${selectedTier === tier.id ? ' is-selected' : ''}${finished ? ' is-finished' : ''}`}
+                  className={`mode-option${selectedTier === tier.id ? ' is-selected' : ''}${finished ? ' is-finished' : ''}${paused ? ' is-paused' : ''}`}
                   htmlFor={`difficulty-${tier.id}`}
                   key={tier.id}
                 >
@@ -109,8 +159,11 @@ function ModeSelection({
                     name="difficulty"
                     value={tier.id}
                     checked={selectedTier === tier.id}
-                    onChange={() => onSelect(tier.id)}
-                    aria-labelledby={`difficulty-${tier.id}-label difficulty-${tier.id}-budget${finished ? ` ${statusId}` : ''}`}
+                    onChange={() => {
+                      setConfirmReplacement(false);
+                      onSelect(tier.id);
+                    }}
+                    aria-labelledby={`difficulty-${tier.id}-label difficulty-${tier.id}-budget${finished || paused ? ` ${statusId}` : ''}`}
                     aria-describedby={`difficulty-${tier.id}-details`}
                   />
                   <span className="mode-option-copy">
@@ -119,6 +172,7 @@ function ModeSelection({
                       <span className="mode-option-meta">
                         <span className="mode-option-budget" id={`difficulty-${tier.id}-budget`}>{puzzle.attemptLimits[tier.id]} swaps</span>
                         {finished && <span className="mode-option-status" id={statusId}>Finished</span>}
+                        {paused && <span className="mode-option-status mode-option-status--paused" id={statusId}>Paused</span>}
                       </span>
                     </span>
                     <span className="mode-option-description" id={`difficulty-${tier.id}-details`}>{tier.description}</span>
@@ -127,9 +181,30 @@ function ModeSelection({
               );
             })}
           </fieldset>
-          <button className="start-puzzle" type="button" onClick={onStart}>
-            {completions[selectedTier] ? 'Review finished puzzle' : 'Start puzzle'}
+          <button className="start-puzzle" type="button" ref={primaryActionRef} onClick={activatePrimaryAction}>
+            {hasPausedRoundForSelectedTier
+              ? 'Resume puzzle'
+              : selectedTierIsFinished ? 'Review finished puzzle' : 'Start puzzle'}
           </button>
+          {confirmReplacement && requiresReplacementConfirmation && pausedProgress && (
+            <section className="save-replacement-confirmation" aria-labelledby="save-replacement-heading">
+              <h3 id="save-replacement-heading">Replace paused puzzle?</h3>
+              <p>
+                Starting {selectedTierConfig.label} will replace your paused {getDifficultyTierConfig(pausedProgress.tierId).label} puzzle and its saved progress.
+              </p>
+              <div className="save-replacement-actions">
+                <button className="replace-saved-puzzle" type="button" ref={replaceActionRef} onClick={onReplacePausedRound}>
+                  Replace and start
+                </button>
+                <button className="keep-saved-puzzle" type="button" onClick={() => {
+                  setConfirmReplacement(false);
+                  primaryActionRef.current?.focus({ preventScroll: true });
+                }}>
+                  Keep saved puzzle
+                </button>
+              </div>
+            </section>
+          )}
         </section>
       </main>
       <GameFooter releaseDate={releaseDate} />
@@ -146,6 +221,7 @@ function PuzzleRound({
   progressRepository,
   onComplete,
   onChooseDifficulty,
+  onBackToModes,
 }: {
   readonly tier: DifficultyTierConfig;
   readonly release: DailyPuzzleRelease;
@@ -155,6 +231,7 @@ function PuzzleRound({
   readonly progressRepository: PuzzleProgressRepository;
   readonly onComplete: (completion: SavedPuzzleCompletionV1) => void;
   readonly onChooseDifficulty: () => void;
+  readonly onBackToModes: (progress: SavedPuzzleProgressV1 | null) => void;
 }) {
   const puzzle = useMemo(() => buildDifficultyPuzzle(release.puzzle, tier.id), [release.puzzle, tier.id]);
   const attemptLimit = release.puzzle.attemptLimits[tier.id];
@@ -247,8 +324,7 @@ function PuzzleRound({
     }
   };
 
-  const saveProgress = useCallback((nextState: typeof state, now: number) => {
-    progressRepository.save({
+  const createProgressSnapshot = useCallback((nextState: typeof state, now: number): SavedPuzzleProgressV1 => ({
       version: 1,
       puzzleId: release.puzzleId,
       tierId: tier.id,
@@ -257,8 +333,10 @@ function PuzzleRound({
       hintUsed: nextState.hintUsed,
       hintedPositions: nextState.hintedPositions,
       elapsedMilliseconds: getActiveSolveMilliseconds(timer.current, now),
-    });
-  }, [progressRepository, release.puzzleId, tier.id]);
+  }), [release.puzzleId, tier.id]);
+  const saveProgress = useCallback((nextState: typeof state, now: number) => {
+    progressRepository.save(createProgressSnapshot(nextState, now));
+  }, [createProgressSnapshot, progressRepository]);
 
   useEffect(() => {
     if (restoredCompletion) {
@@ -347,9 +425,22 @@ function PuzzleRound({
     dispatch({ type: 'useHint' });
   };
 
+  const returnToModes = () => {
+    if (terminal) {
+      onBackToModes(null);
+      return;
+    }
+
+    const now = performance.now();
+    timer.current = stopActiveSolveTimer(timer.current, now);
+    const progress = createProgressSnapshot(state, now);
+    progressRepository.save(progress);
+    onBackToModes(progress);
+  };
+
   return (
     <div className="page-shell">
-      <GameHeader />
+      <GameHeader onChooseDifficulty={returnToModes} />
       <main id="main">
         <section className="intro puzzle-intro" aria-labelledby="game-title">
           <div className="puzzle-caption"><span className="sample-badge">DAILY Nº {release.releaseDate}</span>{cachedCopy && <span className="cached-copy-label">Cached copy · {release.releaseDate}</span>}<span className="mode-badge">{tier.label}</span><span className="visually-hidden">{release.puzzle.title}</span></div>
@@ -508,8 +599,37 @@ function PuzzleRound({
   );
 }
 
+const loadingTileTones = [
+  'plaster', 'blue', 'cyan', 'plaster', 'gold', 'coral',
+  'coral', 'plaster', 'blue', 'plaster', 'cyan', 'plaster',
+  'plaster', 'gold', 'plaster', 'coral', 'blue', 'plaster',
+  'blue', 'plaster', 'coral', 'plaster', 'gold', 'cyan',
+  'plaster', 'coral', 'plaster', 'cyan', 'plaster', 'blue',
+  'gold', 'plaster', 'blue', 'plaster', 'coral', 'plaster',
+] as const;
+
 function LoadingPuzzle() {
-  return <main id="main" className="page-shell"><output className="daily-load-message">Preparing today’s mosaic…</output></main>;
+  return (
+    <div className="page-shell loading-shell">
+      <GameHeader />
+      <main id="main" className="loading-main">
+        <section className="loading-content" aria-label="Daily puzzle loading">
+          <div className="loading-mosaic" aria-hidden="true">
+            {loadingTileTones.map((tone, index) => (
+              <span
+                className={`loading-tile loading-tile--${tone}`}
+                key={index}
+                style={{ '--tile-order': index } as CSSProperties}
+              />
+            ))}
+          </div>
+          <output className="loading-status" aria-live="polite" aria-atomic="true">
+            Preparing today’s mosaic…
+          </output>
+        </section>
+      </main>
+    </div>
+  );
 }
 
 function PuzzleLoadError({ onRetry }: { readonly onRetry: () => void }) {
@@ -540,6 +660,7 @@ export function PuzzleGame() {
   }));
   const [selectedTier, setSelectedTier] = useState<DifficultyTierId>('medium');
   const [started, setStarted] = useState(false);
+  const [focusModeActionOnReturn, setFocusModeActionOnReturn] = useState(false);
   const [release, setRelease] = useState<DailyPuzzleRelease | null>(null);
   const [releaseSource, setReleaseSource] = useState<'network' | 'cache'>('network');
   const [restoredProgress, setRestoredProgress] = useState<SavedPuzzleProgressV1 | null>(null);
@@ -557,11 +678,19 @@ export function PuzzleGame() {
     setSelectedTier(completion.tierId);
     setStarted(true);
   }, [completionRepository]);
-  const chooseAnotherDifficulty = useCallback(() => {
-    setRestoredProgress(null);
+  const returnToDifficultyPicker = useCallback((progress: SavedPuzzleProgressV1 | null) => {
+    if (progress) {
+      progressRepository.save(progress);
+      setRestoredProgress(progress);
+      setSelectedTier(progress.tierId);
+    }
     setReviewCompletion(null);
     setStarted(false);
-  }, []);
+    setFocusModeActionOnReturn(true);
+  }, [progressRepository]);
+  const chooseAnotherDifficulty = useCallback(() => {
+    returnToDifficultyPicker(null);
+  }, [returnToDifficultyPicker]);
 
   const fetchToday = useCallback((signal: AbortSignal) => createDailyPuzzleReleaseLoader({
     fetcher: (input, init) => fetch(input, init),
@@ -608,6 +737,8 @@ export function PuzzleGame() {
       setRestoredProgress(loaded.restoredProgress);
       setReviewCompletion(null);
       setCompletions(loaded.completions);
+      setStarted(Boolean(loaded.restoredProgress));
+      setFocusModeActionOnReturn(false);
       if (loaded.restoredProgress) setSelectedTier(loaded.restoredProgress.tierId);
       setLoadingError(false);
     }).catch(() => {
@@ -672,40 +803,40 @@ export function PuzzleGame() {
     setLoadingError(false);
     setLoadAttempt((attempt) => attempt + 1);
   }} />;
-  if (restoredProgress) {
-    const restoredTier = getDifficultyTierConfig(restoredProgress.tierId);
+  if (started) {
     return <PuzzleRound
-      key={`${release.puzzleId}-${restoredTier.id}`}
-      tier={restoredTier}
-      release={release}
-      restoredProgress={restoredProgress}
-      restoredCompletion={null}
-      cachedCopy={releaseSource === 'cache'}
-      progressRepository={progressRepository}
-      onComplete={handleCompletion}
-      onChooseDifficulty={chooseAnotherDifficulty}
-    />;
-  }
-  return started
-    ? <PuzzleRound
       key={`${release.puzzleId}-${selectedTier}`}
       tier={tier}
       release={release}
-      restoredProgress={null}
+      restoredProgress={restoredProgress?.tierId === selectedTier ? restoredProgress : null}
       restoredCompletion={reviewCompletion}
       cachedCopy={releaseSource === 'cache'}
       progressRepository={progressRepository}
       onComplete={handleCompletion}
       onChooseDifficulty={chooseAnotherDifficulty}
-    />
-    : <ModeSelection
+      onBackToModes={returnToDifficultyPicker}
+    />;
+  }
+  return <ModeSelection
       selectedTier={selectedTier}
       puzzle={release.puzzle}
       releaseDate={release.releaseDate}
       cachedCopy={releaseSource === 'cache'}
       completions={completions}
+      pausedProgress={restoredProgress}
+      focusPrimaryAction={focusModeActionOnReturn}
       onSelect={setSelectedTier}
       onStart={() => {
+        setReviewCompletion(completions[selectedTier] ?? null);
+        setStarted(true);
+      }}
+      onResume={() => {
+        setReviewCompletion(null);
+        setStarted(true);
+      }}
+      onReplacePausedRound={() => {
+        progressRepository.clear();
+        setRestoredProgress(null);
         setReviewCompletion(completions[selectedTier] ?? null);
         setStarted(true);
       }}

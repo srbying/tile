@@ -101,6 +101,88 @@ test('starts a readable target and playable 36-cell board', async ({ page }) => 
   await expect(cell(page, 1, 1)).toHaveAttribute('aria-disabled', 'false');
 });
 
+test('choose difficulty pauses and resumes the same round with saved progress', async ({ page }) => {
+  await startGame(page, 'Hard');
+  const [rowA, columnA, rowB, columnB] = solution[0];
+  await cell(page, rowA, columnA).click();
+  await cell(page, rowB, columnB).click();
+  await page.getByRole('button', { name: 'Use hint', exact: true }).click();
+  await cell(page, 4, 4).click();
+
+  const boardBeforePause = await artworks(page);
+  const savedBeforePause = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
+  await page.waitForTimeout(120);
+  await page.getByRole('button', { name: 'Choose difficulty', exact: true }).click();
+
+  await expect(page.getByRole('heading', { name: 'Choose your mode' })).toBeVisible();
+  await expect(page.locator('.mode-option').filter({ hasText: 'Hard' }).getByText('Paused', { exact: true })).toBeVisible();
+  const resumeButton = page.getByRole('button', { name: 'Resume puzzle', exact: true });
+  await expect(resumeButton).toBeFocused();
+  const savedAfterPause = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
+  expect(savedAfterPause).toMatchObject({
+    tierId: 'hard',
+    attemptsUsed: 1,
+    hintUsed: true,
+    board: savedBeforePause.board,
+  });
+  expect(savedAfterPause.elapsedMilliseconds).toBeGreaterThanOrEqual(savedBeforePause.elapsedMilliseconds);
+
+  await resumeButton.click();
+  await expect(board(page)).toBeVisible();
+  await expect(page.getByText('9 of 10 swaps left', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Use hint', exact: true })).toBeDisabled();
+  await expect(board(page).locator('.is-hinted')).toHaveCount(2);
+  await expect(board(page).getByRole('button', { pressed: true })).toHaveCount(0);
+  expect(await artworks(page)).toEqual(boardBeforePause);
+
+  await page.reload();
+  await expect(board(page)).toBeVisible();
+  await expect(page.getByText('9 of 10 swaps left', { exact: true })).toBeVisible();
+  await expect(board(page).locator('.is-hinted')).toHaveCount(2);
+  expect(await artworks(page)).toEqual(boardBeforePause);
+});
+
+test('confirms before replacing a paused round with another difficulty', async ({ page }) => {
+  await startGame(page, 'Medium');
+  const [rowA, columnA, rowB, columnB] = solution[0];
+  await cell(page, rowA, columnA).click();
+  await cell(page, rowB, columnB).click();
+  const savedProgress = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
+
+  await page.getByRole('button', { name: 'Choose difficulty', exact: true }).click();
+  await page.getByRole('radio', { name: /^Easy\b/ }).check();
+  await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
+
+  await expect(page.getByRole('heading', { name: 'Replace paused puzzle?' })).toBeVisible();
+  const replaceButton = page.getByRole('button', { name: 'Replace and start', exact: true });
+  await expect(replaceButton).toBeFocused();
+  await page.getByRole('button', { name: 'Keep saved puzzle', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Choose your mode' })).toBeVisible();
+  const keptProgress = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
+  const { elapsedMilliseconds: savedElapsedMilliseconds, ...savedRound } = savedProgress;
+  expect(keptProgress).toMatchObject(savedRound);
+  expect(keptProgress.elapsedMilliseconds).toBeGreaterThanOrEqual(savedElapsedMilliseconds);
+
+  await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
+  await page.getByRole('button', { name: 'Replace and start', exact: true }).click();
+  await expect(board(page)).toBeVisible();
+  await expect(page.locator('.mode-badge')).toHaveText('Easy');
+  expect(await page.evaluate(() => localStorage.getItem('tile-puzzle-progress:v1'))).toBeNull();
+});
+
+test('keeps the choose-difficulty control usable without horizontal overflow', async ({ page }) => {
+  await startGame(page);
+  for (const width of [320, 375, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    const button = page.getByRole('button', { name: 'Choose difficulty', exact: true });
+    await expect(button).toBeVisible();
+    const buttonSize = await button.boundingBox();
+    expect(buttonSize?.width).toBeGreaterThanOrEqual(44);
+    expect(buttonSize?.height).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+});
+
 test('reports how many positions match the target through swaps and reloads', async ({ page }) => {
   await startGame(page);
   const countText = page.getByText(/^\d+ of 36 tiles in place$/);
@@ -539,7 +621,7 @@ test('reviews a finished win after reload and keeps sharing available', async ({
 
   const solvedArtwork = await artworks(page);
   const activeTime = await page.locator('.round-result').getByText(/^Active time:/).innerText();
-  await page.getByRole('button', { name: 'Choose another difficulty', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose difficulty', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Choose your mode' })).toBeVisible();
   await expect(page.locator('.mode-option').filter({ hasText: 'Medium' }).getByText('Finished', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Review finished puzzle', exact: true })).toBeVisible();
@@ -558,11 +640,11 @@ test('reviews a finished win after reload and keeps sharing available', async ({
   expect(await page.evaluate(() => (window as unknown as { __copiedText?: string }).__copiedText))
     .toBe('Daily Tile-Swap Puzzle · 2026-09-29\nSolved · Medium mode · 10/13 swaps · Unassisted');
 
-  await page.getByRole('button', { name: 'Choose another difficulty', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose difficulty', exact: true }).click();
   await page.getByRole('radio', { name: /^Easy\b/ }).check();
   await expect(page.getByRole('button', { name: 'Start puzzle', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
-  await expect(page.getByText('Easy mode', { exact: true })).toBeVisible();
+  await expect(page.locator('.mode-badge')).toHaveText('Easy');
 });
 
 test('locks a finished loss while leaving other difficulties playable', async ({ page }) => {
@@ -571,7 +653,7 @@ test('locks a finished loss while leaving other difficulties playable', async ({
     await cell(page, 1, 1).click();
     await cell(page, 1, 2).click();
   }
-  await page.getByRole('button', { name: 'Choose another difficulty', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose difficulty', exact: true }).click();
 
   await expect(page.locator('.mode-option').filter({ hasText: 'Hard' }).getByText('Finished', { exact: true })).toBeVisible();
   await page.getByRole('radio', { name: /^Medium\b/ }).check();
@@ -585,7 +667,7 @@ test('locks a finished loss while leaving other difficulties playable', async ({
   await page.getByRole('button', { name: 'Choose another difficulty', exact: true }).click();
   await page.getByRole('radio', { name: /^Medium\b/ }).check();
   await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
-  await expect(page.getByText('Medium mode', { exact: true })).toBeVisible();
+  await expect(page.locator('.mode-badge')).toHaveText('Medium');
 });
 
 test('makes all difficulties playable for a new daily puzzle', async ({ page }) => {
