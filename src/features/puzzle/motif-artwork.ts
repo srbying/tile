@@ -8,7 +8,7 @@ export interface MotifArtwork {
 }
 
 export const motifArtwork: Record<Motif, MotifArtwork> = {
-  "meander": { label: "Greek key", paths: ["M20 20H80V80H40V45H60V60"] },
+  "meander": { label: "Angular maze", paths: ["M20 20H80V80H40V45H60V60"] },
   "chevron": { label: "Double chevron", paths: ["M22 24L50 48L78 24", "M22 50L50 74L78 50"] },
   "diamond": { label: "Nested diamonds", paths: ["M50 16L84 50L50 84L16 50Z", "M50 37L63 50L50 63L37 50Z"] },
   "rosette": { label: "Petal rosette", paths: ["M50 50C24 49 22 23 42 20C52 19 56 31 50 50", "M50 50C51 24 77 22 80 42C81 52 69 56 50 50", "M50 50C76 51 78 77 58 80C48 81 44 69 50 50", "M50 50C49 76 23 78 20 58C19 48 31 44 50 50", "M50 43A7 7 0 1 0 50 57A7 7 0 1 0 50 43"] },

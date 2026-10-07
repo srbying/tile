@@ -10,7 +10,7 @@ export interface ResultShareSummary {
 /** Build a share message from display-safe result fields only. */
 export function buildResultShareText(summary: ResultShareSummary): string {
   const outcome = summary.status === 'won' ? 'Solved' : 'Not solved';
-  const assistance = summary.hintUsed ? 'Assisted (hint used)' : 'Unassisted';
+  const assistance = summary.hintUsed ? 'Hint used' : 'No hint';
 
   return [
     `Daily Tile-Swap Puzzle · ${summary.releaseDate}`,

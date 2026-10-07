@@ -2,21 +2,21 @@ import { expect, test } from '@playwright/test';
 
 test('authors, validates, previews, and exports a candidate offline', async ({ page }) => {
   await page.goto('/author');
-  await expect(page.getByRole('heading', { name: 'Puzzle authoring' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Puzzle editor' })).toBeVisible();
 
-  const json = page.getByRole('textbox', { name: 'Candidate JSON' });
+  const json = page.getByRole('textbox', { name: 'Puzzle JSON' });
   const candidate = JSON.parse(await json.inputValue()) as { id: string; title: string };
 
-  await page.getByRole('button', { name: 'Generate candidate' }).click();
+  await page.getByRole('button', { name: 'Generate puzzle' }).click();
   const generated = JSON.parse(await json.inputValue()) as { id: string };
   expect(generated.id).not.toBe(candidate.id);
-  await page.getByRole('button', { name: 'Validate candidate' }).click();
-  await expect(page.getByRole('status')).toContainText('Candidate passes validation');
+  await page.getByRole('button', { name: 'Check puzzle' }).click();
+  await expect(page.getByRole('status')).toContainText('Puzzle is valid');
 
   candidate.title = 'Edited courtyard';
   await json.fill(JSON.stringify(candidate, null, 2));
-  await page.getByRole('button', { name: 'Validate candidate' }).click();
-  await expect(page.getByRole('status')).toContainText('Candidate passes validation');
+  await page.getByRole('button', { name: 'Check puzzle' }).click();
+  await expect(page.getByRole('status')).toContainText('Puzzle is valid');
   await expect(page.getByText('Edited courtyard', { exact: true })).toBeVisible();
 
   for (const tier of ['Easy', 'Medium', 'Hard']) {
@@ -27,18 +27,18 @@ test('authors, validates, previews, and exports a candidate offline', async ({ p
   }
 
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export candidate JSON' }).click();
+  await page.getByRole('button', { name: 'Export puzzle JSON' }).click();
   expect((await download).suggestedFilename()).toMatch(/candidate-.*\.json/);
 });
 
 test('imports candidate JSON and explains validation failures', async ({ page }) => {
   await page.goto('/author');
-  await page.getByLabel('Load candidate JSON').setInputFiles({
+  await page.getByLabel('Load puzzle JSON').setInputFiles({
     name: 'invalid-candidate.json',
     mimeType: 'application/json',
     buffer: Buffer.from('{"schemaVersion":1,"id":"broken"}'),
   });
-  await expect(page.getByRole('alert')).toContainText('Candidate must contain two 6×6 tile boards');
+  await expect(page.getByRole('alert')).toContainText('Add a 6×6 target board and a 6×6 starting board');
 });
 
 test('reports file read failures and resets the input for the same file', async ({ page }) => {
@@ -50,7 +50,7 @@ test('reports file read failures and resets the input for the same file', async 
     };
   });
   await page.goto('/author');
-  const input = page.getByLabel('Load candidate JSON');
+  const input = page.getByLabel('Load puzzle JSON');
   const file = {
     name: 'candidate.json',
     mimeType: 'application/json',
@@ -58,14 +58,14 @@ test('reports file read failures and resets the input for the same file', async 
   };
 
   await input.setInputFiles({ ...file, name: 'unreadable.json' });
-  await expect(page.getByRole('alert')).toContainText('Could not read candidate JSON file');
+  await expect(page.getByRole('alert')).toContainText('Could not read the puzzle file');
   await expect(input).toHaveValue('');
 
   await input.setInputFiles(file);
-  await expect(page.getByRole('textbox', { name: 'Candidate JSON' })).toHaveValue(file.buffer.toString());
+  await expect(page.getByRole('textbox', { name: 'Puzzle JSON' })).toHaveValue(file.buffer.toString());
   await expect(input).toHaveValue('');
   await input.setInputFiles(file);
-  await expect(page.getByRole('textbox', { name: 'Candidate JSON' })).toHaveValue(file.buffer.toString());
+  await expect(page.getByRole('textbox', { name: 'Puzzle JSON' })).toHaveValue(file.buffer.toString());
 });
 
 test('ignores an earlier file read when a newer selection or text edit wins', async ({ page }) => {
@@ -83,8 +83,8 @@ test('ignores an earlier file read when a newer selection or text edit wins', as
     };
   });
   await page.goto('/author');
-  const input = page.getByLabel('Load candidate JSON');
-  const json = page.getByRole('textbox', { name: 'Candidate JSON' });
+  const input = page.getByLabel('Load puzzle JSON');
+  const json = page.getByRole('textbox', { name: 'Puzzle JSON' });
   const slow = { name: 'slow.json', mimeType: 'application/json', buffer: Buffer.from('{"id":"stale"}') };
   const latest = { name: 'latest.json', mimeType: 'application/json', buffer: Buffer.from('{"id":"latest"}') };
 

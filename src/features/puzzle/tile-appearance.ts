@@ -12,9 +12,9 @@ const colors: Record<TileColor, string> = {
 };
 const cream = '#f7eee6';
 const colorNames: Record<TileColor, string> = {
-  teal: 'Aegean blue',
+  teal: 'blue',
   terracotta: 'coral',
-  indigo: 'deep sea blue',
+  indigo: 'indigo',
   ochre: 'gold',
 };
 const pathToken = /[A-Za-z]|[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?/g;
@@ -210,5 +210,12 @@ export const visualKey = (tile: TileAppearance) => JSON.stringify(visibleAppeara
 export const sameAppearance = (left: TileAppearance, right: TileAppearance) => visualKey(left) === visualKey(right);
 
 export function describeTile(tile: TileAppearance): string {
-  return `${colorNames[tile.color]} ${motifs[tile.motif].label}, ${tile.strokeWeight === 7 ? 'bold' : 'fine'} lines, ${tile.orientation} degrees${tile.mirrored ? ', mirrored' : ''}${tile.inverted ? ', light motif on dark background' : ', dark motif on light background'}`;
+  const rotation = tile.orientation === 0
+    ? 'not rotated'
+    : tile.orientation === 180
+      ? 'rotated 180 degrees'
+      : `rotated 90 degrees ${tile.orientation === 90 ? 'clockwise' : 'counterclockwise'}`;
+  const reflection = tile.mirrored ? ', flipped left to right' : '';
+  const contrast = tile.inverted ? ', light pattern on dark tile' : ', dark pattern on light tile';
+  return `${colorNames[tile.color]} ${motifs[tile.motif].label}, ${tile.strokeWeight === 7 ? 'thick' : 'thin'} lines, ${rotation}${reflection}${contrast}`;
 }

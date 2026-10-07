@@ -40,11 +40,11 @@ function parseEditorText(text: string): { candidate: PuzzleCandidate | null; err
     const parsed = parsePuzzleCandidate(value);
     if (!parsed) {
       const issue = validatePuzzleCandidate(value).issues[0];
-      return { candidate: null, error: issue?.message ?? 'Candidate JSON is invalid.' };
+      return { candidate: null, error: issue?.message ?? 'Puzzle JSON is invalid.' };
     }
     return { candidate: parsed, error: null };
   } catch {
-    return { candidate: null, error: 'Candidate JSON is not valid JSON.' };
+    return { candidate: null, error: 'The editor contents are not valid JSON.' };
   }
 }
 
@@ -88,7 +88,7 @@ export function PuzzleAuthoringPage() {
     } catch {
       if (readVersion === fileReadVersion.current) {
         setValidation(null);
-        setImportError('Could not read candidate JSON file.');
+        setImportError('Could not read the puzzle file.');
       }
       input.value = '';
       return;
@@ -100,7 +100,7 @@ export function PuzzleAuthoringPage() {
     try {
       validate(JSON.parse(content) as unknown);
     } catch {
-      setImportError('Candidate JSON is not valid JSON.');
+      setImportError('The file does not contain valid JSON.');
     }
   };
 
@@ -119,7 +119,7 @@ export function PuzzleAuthoringPage() {
       validate(JSON.parse(source) as unknown);
     } catch {
       setValidation(null);
-      setImportError('Candidate JSON is not valid JSON.');
+      setImportError('The editor contents are not valid JSON.');
     }
   };
 
@@ -135,7 +135,7 @@ export function PuzzleAuthoringPage() {
 
   const firstIssue = validation?.issues[0]?.message;
   const validationMessage = validation?.valid
-    ? `Candidate passes validation. Minimum solution: ${validation.tiers[0]?.minimumSwaps} swaps in each tier.`
+    ? `Puzzle is valid. The shortest solution is 10 swaps in each mode.`
     : null;
 
   return (
@@ -146,18 +146,18 @@ export function PuzzleAuthoringPage() {
       </header>
       <main id="main">
         <section className="intro preview-intro" aria-labelledby="authoring-title">
-          <h1 id="authoring-title">Puzzle authoring</h1>
-          <p className="intro-copy">Load or edit candidate JSON, validate visible play, and preview every difficulty tier.</p>
-          <div className="puzzle-caption"><span className="sample-badge">DAILY SEED</span><span>{editorDate}</span></div>
+          <h1 id="authoring-title">Puzzle editor</h1>
+          <p className="intro-copy">Edit the puzzle JSON, check that it can be solved in each mode, and preview the tiles.</p>
+          <div className="puzzle-caption"><span className="sample-badge">SEED DATE</span><span>{editorDate}</span></div>
         </section>
 
         <section className="authoring-editor" aria-labelledby="candidate-heading">
           <div className="authoring-heading">
-            <h2 id="candidate-heading">Candidate JSON</h2>
+            <h2 id="candidate-heading">Puzzle JSON</h2>
             <label className="authoring-file-label">
-              Load candidate JSON
+              Load puzzle JSON
               <input
-                aria-label="Load candidate JSON"
+                aria-label="Load puzzle JSON"
                 type="file"
                 accept="application/json,.json"
                 onChange={(event) => { void loadFile(event.currentTarget.files?.[0], event.currentTarget); }}
@@ -165,7 +165,7 @@ export function PuzzleAuthoringPage() {
             </label>
           </div>
           <textarea
-            aria-label="Candidate JSON"
+            aria-label="Puzzle JSON"
             spellCheck={false}
             value={source}
             onChange={(event) => {
@@ -176,23 +176,31 @@ export function PuzzleAuthoringPage() {
             }}
           />
           <div className="authoring-actions">
-            <button className="authoring-export" type="button" onClick={generateCandidate}>Generate candidate</button>
-            <button className="start-puzzle" type="button" onClick={validateEditor}>Validate candidate</button>
-            <button className="authoring-export" type="button" disabled={!candidate} onClick={exportCandidate}>Export candidate JSON</button>
+            <button className="authoring-export" type="button" onClick={generateCandidate}>Generate puzzle</button>
+            <button className="start-puzzle" type="button" onClick={validateEditor}>Check puzzle</button>
+            <button className="authoring-export" type="button" disabled={!candidate} onClick={exportCandidate}>Export puzzle JSON</button>
           </div>
           {importError && <p className="authoring-error" role="alert">{importError}</p>}
           {validationMessage && <output className="authoring-success">{validationMessage}</output>}
           {firstIssue && <div className="authoring-error" role="alert">
-            <strong>Candidate failed validation</strong>
+            <strong>Fix these puzzle issues</strong>
             <ul>{validation!.issues.map((issue, index) => <li key={`${issue.code}-${index}`}>{issue.message}</li>)}</ul>
           </div>}
           {validation && validation.tiers.length > 0 && (
-            <ul className="authoring-tier-results" aria-label="Validation by difficulty">
-              {validation.tiers.map((tier) => (
-                <li key={tier.tierId}>
-                  {tier.tierId}: {tier.minimumSwaps ?? (validation.issues.some((issue) => issue.tierId === tier.tierId && issue.code === 'incorrect-shortest-solution') ? 'over 10' : 'unsolvable')} shortest swaps; {tier.attemptLimit} allowed; hint {tier.hint ? 'valid' : 'invalid'}
-                </li>
-              ))}
+            <ul className="authoring-tier-results" aria-label="Checks by mode">
+              {validation.tiers.map((tier) => {
+                const modeLabel = difficultyTierConfigs.find(({ id }) => id === tier.tierId)?.label ?? tier.tierId;
+                const tooManySwaps = validation.issues.some((issue) => issue.tierId === tier.tierId && issue.code === 'incorrect-shortest-solution');
+                const solution = tier.minimumSwaps === null
+                  ? tooManySwaps ? 'More than 10 swaps to solve' : 'No solution found'
+                  : `Shortest solution: ${tier.minimumSwaps} swaps`;
+                const swapLimit = tier.attemptLimit ?? 'invalid';
+                return (
+                  <li key={tier.tierId}>
+                    <strong>{modeLabel}:</strong> {solution}; {swapLimit} swaps allowed; hint {tier.hint ? 'works' : 'needs a fix'}.
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
@@ -224,7 +232,7 @@ export function PuzzleAuthoringPage() {
           </section>
         )}
       </main>
-      <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>OFFLINE CONTENT TOOL <span aria-hidden="true">✦</span></span></footer>
+      <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>OFFLINE PUZZLE EDITOR <span aria-hidden="true">✦</span></span></footer>
     </div>
   );
 }

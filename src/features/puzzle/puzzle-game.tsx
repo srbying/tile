@@ -34,17 +34,17 @@ function GameHeader({ onChooseDifficulty }: { readonly onChooseDifficulty?: () =
             <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
               <path d="M16 10H4m0 0 6-6m-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <span>Choose difficulty</span>
+            <span>Choose mode</span>
           </button>
         )}
-        <a className="preview-navigation-link" href="/preview">Compare difficulty art</a>
+        <a className="preview-navigation-link" href="/preview">Compare modes</a>
       </nav>
     </header>
   );
 }
 
 function GameFooter({ releaseDate }: { readonly releaseDate?: string } = {}) {
-  return <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>{releaseDate ? `DAILY PUZZLE · ${releaseDate}` : 'SAMPLE COLLECTION'}</span><a href="/author">Offline authoring</a></footer>;
+  return <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>{releaseDate ? `DAILY PUZZLE · ${releaseDate}` : 'SAMPLE PUZZLES'}</span><a href="/author">Puzzle editor</a></footer>;
 }
 
 function validatePuzzleCompletions(
@@ -132,17 +132,17 @@ function ModeSelection({
       <main id="main">
         <section className="intro mode-intro" aria-labelledby="game-title">
           <h1 id="game-title">Daily Tile-Swap Puzzle</h1>
-          <p className="intro-copy">Choose a challenge. Same daily mosaic, same tile placement.</p>
-          <div className="puzzle-caption"><span className="sample-badge">DAILY Nº {releaseDate}</span>{cachedCopy && <span className="cached-copy-label">Cached copy · {releaseDate}</span>}<span>{puzzle.title}</span></div>
+          <p className="intro-copy">Restore today’s pattern by swapping tiles.</p>
+          {cachedCopy && <p className="cached-copy-label">Using a saved copy of today’s puzzle</p>}
         </section>
 
         <section className="mode-selection" aria-labelledby="mode-heading">
           <div className="mode-heading">
             <h2 id="mode-heading">Choose your mode</h2>
-            <p>Attempt budget and visual similarity change by mode.</p>
+            <p>Choose how easy the tiles should be to tell apart.</p>
           </div>
           <fieldset className="mode-options">
-            <legend className="visually-hidden">Difficulty mode</legend>
+            <legend className="visually-hidden">Choose a mode</legend>
             {difficultyTierConfigs.map((tier) => {
               const finished = Boolean(completions[tier.id]);
               const paused = pausedProgress?.tierId === tier.id;
@@ -268,15 +268,15 @@ function PuzzleRound({
   );
   const selected = state.selectedPosition;
   const message = won
-    ? `${tilesInPlace} of 36 tiles in place. Puzzle complete. The pattern is restored.`
+    ? `Puzzle solved. All 36 tiles match the target.`
     : lost
-      ? `${tilesInPlace} of 36 tiles in place. No attempts remaining. The pattern was not restored.`
+      ? `No match after ${state.attemptsUsed} swaps. ${tilesInPlace} of 36 tiles match the target.`
       : selected === null
-      ? `${tilesInPlace} of 36 tiles in place. ${attemptsRemaining} of ${state.attemptLimit} swaps remaining. Choose any tile to begin a swap.`
-      : `${describePosition(selected)} selected. Choose another tile to swap, or clear your selection.`;
+      ? `${tilesInPlace} of 36 tiles match the target. ${attemptsRemaining} swaps left. Select two tiles to swap.`
+      : `${describePosition(selected)} selected. Select another tile to swap, or select this tile again to cancel.`;
   const hintMessage = state.hintedPositions === null
     ? null
-    : `Hint: Swap ${describePosition(state.hintedPositions[0])} with ${describePosition(state.hintedPositions[1])} to move closer to the target.`;
+    : `Hint: Swap ${describePosition(state.hintedPositions[0])} with ${describePosition(state.hintedPositions[1])} to make progress toward the target.`;
 
   const openTargetDialog = () => {
     const dialog = targetDialogRef.current;
@@ -306,11 +306,11 @@ function PuzzleRound({
     if (typeof navigator.share === 'function') {
       try {
         await navigator.share({ title: 'Daily Tile-Swap Puzzle', text });
-        setShareFeedback('Share sheet opened.');
+        setShareFeedback('Choose an app to share your result.');
         return;
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
-          setShareFeedback('Sharing canceled.');
+          setShareFeedback('Share canceled.');
           return;
         }
       }
@@ -318,9 +318,9 @@ function PuzzleRound({
 
     try {
       await navigator.clipboard.writeText(text);
-      setShareFeedback('Result copied to clipboard.');
+      setShareFeedback('Result copied.');
     } catch {
-      setShareFeedback('Could not copy result. Please try again.');
+      setShareFeedback('Could not copy result. Try again.');
     }
   };
 
@@ -443,21 +443,20 @@ function PuzzleRound({
       <GameHeader onChooseDifficulty={returnToModes} />
       <main id="main">
         <section className="intro puzzle-intro" aria-labelledby="game-title">
-          <div className="puzzle-caption"><span className="sample-badge">DAILY Nº {release.releaseDate}</span>{cachedCopy && <span className="cached-copy-label">Cached copy · {release.releaseDate}</span>}<span className="mode-badge">{tier.label}</span><span className="visually-hidden">{release.puzzle.title}</span></div>
+          <div className="puzzle-caption"><span className="mode-badge">{tier.label} mode</span>{cachedCopy && <span className="cached-copy-label">Using a saved copy of today’s puzzle</span>}</div>
           <h1 id="game-title">Daily Tile-Swap Puzzle</h1>
-          <p id="game-instruction" className="intro-copy">Match the target. Tap two tiles to swap them.</p>
+          <p id="game-instruction" className="intro-copy">Look at the target, then select two tiles to swap.</p>
         </section>
 
         <div className="game-layout">
           <section className="board-section target-section" aria-labelledby="target-heading">
             <div className="board-heading">
-              <h2 id="target-heading">The target</h2>
-              <span className="board-tag">LOOK CLOSELY</span>
+              <h2 id="target-heading">Target pattern</h2>
             </div>
             <div className="target-reference-row">
               <TargetBoard tiles={puzzle.target} />
               <div className="target-reference-actions">
-                <span>Keep this pattern in view as you play.</span>
+                <span>Keep the target in view as you play.</span>
                 <button
                   className="enlarge-target-button"
                   type="button"
@@ -466,18 +465,18 @@ function PuzzleRound({
                   ref={targetZoomButtonRef}
                   onClick={openTargetDialog}
                 >
-                  View target larger
+                  Enlarge target
                 </button>
               </div>
             </div>
-            <p className="board-note"><span aria-hidden="true">◇</span> A little symmetry, waiting to be restored.</p>
+            <p className="board-note"><span aria-hidden="true">◇</span> Compare each tile’s shape, color, and direction.</p>
           </section>
 
           <section className="board-section player-section" aria-labelledby="board-heading">
             <div className="board-heading">
-              <h2 id="board-heading">Your mosaic</h2>
+              <h2 id="board-heading">Your tiles</h2>
               <span className={`board-tag progress-tag${won ? ' complete-tag' : ''}${lost ? ' failed-tag' : ''}`}>
-                <span aria-hidden="true">{won ? '✓' : lost ? '×' : '○'}</span> {won ? 'RESTORED' : lost ? 'OUT OF SWAPS' : 'IN PROGRESS'}
+                <span aria-hidden="true">{won ? '✓' : lost ? '×' : '○'}</span> {won ? 'SOLVED' : lost ? 'NO SWAPS LEFT' : 'IN PROGRESS'}
               </span>
             </div>
             <PuzzleBoard
@@ -491,33 +490,32 @@ function PuzzleRound({
             <p className="attempt-count">
               <span className="progress-stat">
                 <span className="progress-glyph" aria-hidden="true"><i /><i /><i /><i /></span>
-                <span className="stat-copy">{tilesInPlace} of 36 tiles in place</span>
+                <span className="stat-copy">{tilesInPlace} of 36 tiles match the target</span>
               </span>
               <span className="swap-stat">
                 <svg className="swap-glyph" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
                   <path d="M8 15h27l-6-6m6 6-6 6" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
                   <path d="M40 33H13l6 6m-6-6 6-6" fill="none" stroke="#084888" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                <span className="stat-copy">{attemptsRemaining} of {state.attemptLimit} swaps left</span>
+                <span className="stat-copy">{attemptsRemaining} swaps left</span>
               </span>
             </p>
 
             <div className="game-actions">
               <button className="hint-button" type="button" disabled={state.hintUsed || terminal} onClick={useHint}>
-                Use hint
+                Show hint
               </button>
               <button className="clear-selection" type="button" tabIndex={0} disabled={selected === null || terminal} onClick={() => dispatch({ type: 'cancel' })}>
-                Clear selection
+                Cancel selection
               </button>
             </div>
 
             {terminal && (
               <div className={`round-result${won ? ' won-result' : ' lost-result'}`} aria-label="Round result">
                 <strong>{tier.label} mode</strong>
-                <span>{state.attemptsUsed} of {state.attemptLimit} swaps used</span>
-                <span>Active time: {formatActiveSolveTime(activeElapsedMilliseconds ?? 0)}</span>
-                <span>{state.hintUsed ? 'Assisted (hint used)' : 'Unassisted'}</span>
-                <span className="result-motif">Motif: {puzzle.motifDescription}</span>
+                <span>{won ? `Solved in ${state.attemptsUsed} of ${state.attemptLimit} swaps` : `No match after ${state.attemptsUsed} swaps`}</span>
+                <span>Solve time: {formatActiveSolveTime(activeElapsedMilliseconds ?? 0)}</span>
+                <span>{state.hintUsed ? 'Hint used' : 'No hint'}</span>
                 <div className="result-share">
                   <button className="result-share-button" type="button" onClick={() => void shareResult()}>
                     {nativeSharingAvailable ? 'Share result' : 'Copy result'}
@@ -526,7 +524,7 @@ function PuzzleRound({
                 </div>
                 <div className="result-actions">
                   <button className="choose-difficulty" type="button" onClick={onChooseDifficulty}>
-                    Choose another difficulty
+                    Choose another mode
                   </button>
                 </div>
               </div>
@@ -562,7 +560,7 @@ function PuzzleRound({
             <div className="target-dialog-heading">
               <div>
                 <h2 id="target-dialog-heading">Enlarged target</h2>
-                <p>Full-size reference · 6 × 6</p>
+                <p>Target pattern · 6 × 6</p>
               </div>
               <button
                 className="target-dialog-close"
@@ -575,7 +573,7 @@ function PuzzleRound({
             </div>
             <TargetBoard tiles={puzzle.target} />
             <p id="target-dialog-description" className="target-dialog-description">
-              Take a closer look, then return to your mosaic. Your puzzle position is saved.
+              Use the larger pattern as a guide. Your place in the puzzle is saved while you view it.
             </p>
             <button
               className="target-dialog-return"
@@ -588,11 +586,11 @@ function PuzzleRound({
         </div>
 
         <aside className="how-to-play" aria-label="Playing tips">
-          <p><span className="tip-number">1</span> Tap a tile to select it.</p>
-          <p><span className="tip-number">2</span> Tap a second tile to swap them.</p>
-          <p><span className="tip-number">3</span> Keep swapping until your mosaic matches the target.</p>
+          <p><span className="tip-number">1</span> Select a tile.</p>
+          <p><span className="tip-number">2</span> Select another tile to swap them.</p>
+          <p><span className="tip-number">3</span> Match the target using as few swaps as you can.</p>
         </aside>
-        <p className="keyboard-note" id="keyboard-instruction">Keyboard: Tab to the board; use arrow keys to move between tiles. Enter or Space selects and swaps; Escape clears selection. Tab or Shift+Tab leaves the board.<br />Moving focus alone never changes the board. Tap a selected tile again to cancel. Each swap uses one attempt.</p>
+        <p className="keyboard-note" id="keyboard-instruction">Keyboard: Use Tab and the arrow keys to move between tiles. Press Enter or Space to select a tile, then select another to swap. Press Escape to cancel. Moving focus alone does not change the board. Each swap counts as one move.</p>
       </main>
       <GameFooter releaseDate={release.releaseDate} />
     </div>
@@ -624,7 +622,7 @@ function LoadingPuzzle() {
             ))}
           </div>
           <output className="loading-status" aria-live="polite" aria-atomic="true">
-            Preparing today’s mosaic…
+            Loading today’s puzzle…
           </output>
         </section>
       </main>
@@ -636,9 +634,9 @@ function PuzzleLoadError({ onRetry }: { readonly onRetry: () => void }) {
   return (
     <main id="main" className="page-shell">
       <section className="daily-load-message" aria-labelledby="daily-error-heading">
-        <h1 id="daily-error-heading">Today’s puzzle is unavailable</h1>
-        <p>Daily puzzle generation could not be verified. Try again shortly.</p>
-        <button className="start-puzzle" type="button" onClick={onRetry}>Retry puzzle load</button>
+        <h1 id="daily-error-heading">We couldn’t load today’s puzzle</h1>
+        <p>Please try again.</p>
+        <button className="start-puzzle" type="button" onClick={onRetry}>Try again</button>
       </section>
     </main>
   );

@@ -3,12 +3,12 @@ import type { Page } from '@playwright/test';
 
 const tiers = ['Easy', 'Medium', 'Hard'] as const;
 const board = (page: Page, tier: string, kind: 'target' | 'starting') =>
-  page.getByRole('list', { name: `${tier} ${kind} board`, exact: true });
+  page.getByRole('list', { name: `${tier} ${kind === 'target' ? 'target pattern' : 'starting tiles'}`, exact: true });
 
 test('shows the same full-size target and starting layout for each art tier', async ({ page }) => {
   await page.goto('/preview');
-  await expect(page.getByRole('heading', { name: 'Difficulty art preview' })).toBeVisible();
-  await expect(page.getByText('Same courtyard. Same tile placement. Three visual tiers.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Compare the modes' })).toBeVisible();
+  await expect(page.getByText('Same puzzle, different visual clues. Each mode changes how the tiles look.')).toBeVisible();
 
   for (const tier of tiers) {
     await expect(page.getByRole('heading', { name: new RegExp(`${tier}$`) })).toBeVisible();
@@ -52,11 +52,11 @@ test('keeps each board readable and stacked at common phone widths', async ({ pa
 test('navigates from the game to preview and back without changing gameplay', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Daily Tile-Swap Puzzle.' })).toBeVisible();
-  await page.getByRole('link', { name: 'Compare difficulty art' }).click();
+  await page.getByRole('link', { name: 'Compare modes' }).click();
   await expect(page).toHaveURL('/preview');
   await page.getByRole('link', { name: 'Back to the puzzle' }).click();
   await expect(page).toHaveURL('/');
   await expect(page.getByRole('heading', { name: 'Daily Tile-Swap Puzzle.' })).toBeVisible();
   await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
-  await expect(page.getByRole('group', { name: 'Your mosaic', exact: true }).getByRole('button')).toHaveCount(36);
+  await expect(page.getByRole('group', { name: 'Your tiles', exact: true }).getByRole('button')).toHaveCount(36);
 });

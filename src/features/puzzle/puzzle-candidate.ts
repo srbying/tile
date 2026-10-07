@@ -134,7 +134,7 @@ function emptyResult(issues: readonly PuzzleValidationIssue[]): PuzzleValidation
 export function validatePuzzleCandidate(value: unknown, options: PuzzleValidationOptions = {}): PuzzleValidationResult {
   const issues: PuzzleValidationIssue[] = [];
   if (hasHiddenIdentifier(value)) {
-    issues.push({ code: 'hidden-id-dependency', message: 'Tile identity fields are not part of the visible puzzle rules.' });
+    issues.push({ code: 'hidden-id-dependency', message: 'Remove tile ID fields. Tiles are matched by how they look.' });
     return emptyResult(issues);
   }
 
@@ -152,8 +152,8 @@ export function validatePuzzleCandidate(value: unknown, options: PuzzleValidatio
     issues.push({
       code,
       message: code === 'invalid-candidate'
-        ? 'Candidate metadata or difficulty limits are invalid.'
-        : code === 'invalid-tile' ? 'Candidate contains an unsupported visible tile appearance.' : 'Candidate must contain two 6×6 tile boards.',
+        ? 'Puzzle metadata or swap limits are invalid.'
+        : code === 'invalid-tile' ? 'One or more tiles use an unsupported color, shape, or style.' : 'Add a 6×6 target board and a 6×6 starting board.',
     });
     return emptyResult(issues);
   }
@@ -171,26 +171,26 @@ export function validatePuzzleCandidate(value: unknown, options: PuzzleValidatio
     let hint = candidate.hints?.[config.id] ?? findProductiveHint(puzzle.start, puzzle.target, sameAppearance);
 
     if (exceedsTenSwapBound) {
-      issues.push({ code: 'incorrect-shortest-solution', message: `${config.label} must require exactly 10 visible swaps.`, tierId: config.id });
+      issues.push({ code: 'incorrect-shortest-solution', message: `The shortest solution in ${config.label.toLowerCase()} mode must be exactly 10 swaps.`, tierId: config.id });
     } else if (minimumSwaps === null) {
-      issues.push({ code: 'unsolvable-inventory', message: `${config.label} tile appearances do not match the target inventory.`, tierId: config.id });
+      issues.push({ code: 'unsolvable-inventory', message: `The ${config.label.toLowerCase()} starting tiles do not match the target tile set.`, tierId: config.id });
       hint = null;
     } else if (minimumSwaps === 0) {
-      issues.push({ code: 'already-solved', message: `${config.label} starting board already matches the visible target.`, tierId: config.id });
+      issues.push({ code: 'already-solved', message: `The ${config.label.toLowerCase()} starting board already matches the target. Scramble it first.`, tierId: config.id });
       hint = null;
     } else if (minimumSwaps !== 10) {
-      issues.push({ code: 'incorrect-shortest-solution', message: `${config.label} must require exactly 10 visible swaps.`, tierId: config.id });
+      issues.push({ code: 'incorrect-shortest-solution', message: `The shortest solution in ${config.label.toLowerCase()} mode must be exactly 10 swaps.`, tierId: config.id });
     }
     if (!Number.isInteger(attemptLimit) || attemptLimit !== config.attemptLimit
       || (minimumSwaps !== null && attemptLimit < minimumSwaps)) {
-      issues.push({ code: 'invalid-attempt-limit', message: `${config.label} must allow exactly ${config.attemptLimit} swaps.`, tierId: config.id });
+      issues.push({ code: 'invalid-attempt-limit', message: `Set ${config.label.toLowerCase()} mode to allow exactly ${config.attemptLimit} swaps.`, tierId: config.id });
     }
     if (hint !== null && (!isHint(hint) || !hintImproves(hint, puzzle.start, puzzle.target))) {
-      issues.push({ code: 'invalid-hint', message: `${config.label} hint must improve visible matches.`, tierId: config.id });
+      issues.push({ code: 'invalid-hint', message: `The ${config.label.toLowerCase()} hint must use two tiles and improve the board.`, tierId: config.id });
       hint = null;
     }
     if (hint === null && minimumSwaps !== null && minimumSwaps > 0) {
-      issues.push({ code: 'invalid-hint', message: `${config.label} has no productive visible hint.`, tierId: config.id });
+      issues.push({ code: 'invalid-hint', message: `Add a ${config.label.toLowerCase()} hint that improves the board.`, tierId: config.id });
     }
 
     // Render equivalence is the sole goal contract; this guards accidental hidden fields or renderer gaps.
@@ -203,7 +203,7 @@ export function validatePuzzleCandidate(value: unknown, options: PuzzleValidatio
 
   const recentTargets = options.recentTargets ?? (options.recentPuzzles ?? []).map(({ target }) => target);
   if (hasRecentVisualDuplicate(candidate.target, 6, recentTargets)) {
-    issues.push({ code: 'recent-visual-duplicate', message: 'Target visually repeats a recent puzzle under board rotation or reflection.' });
+    issues.push({ code: 'recent-visual-duplicate', message: 'This target matches a recent puzzle when rotated or reflected. Change its layout or tile directions.' });
   }
 
   return { valid: issues.length === 0, issues, tiers };

@@ -36,8 +36,8 @@ export function DifficultyPreviewPage() {
 
       <main id="main">
         <section className="intro preview-intro" aria-labelledby="preview-title">
-          <h1 id="preview-title">Difficulty art preview</h1>
-          <p className="intro-copy">Same courtyard. Same tile placement. Three visual tiers.</p>
+          <h1 id="preview-title">Compare the modes</h1>
+          <p className="intro-copy">Same puzzle, different visual clues. Each mode changes how the tiles look.</p>
         </section>
 
         <div className="tier-preview-list">
@@ -50,21 +50,21 @@ export function DifficultyPreviewPage() {
               <div className="tier-board-pair">
                 <figure>
                   <figcaption><span className="section-number" aria-hidden="true">01</span> Target</figcaption>
-                  <PreviewBoard tiles={preview.target} label={`${preview.label} target board`} />
+                  <PreviewBoard tiles={preview.target} label={`${preview.label} target pattern`} />
                 </figure>
                 <figure>
-                  <figcaption><span className="section-number" aria-hidden="true">02</span> Starting board</figcaption>
-                  <PreviewBoard tiles={preview.start} label={`${preview.label} starting board`} />
+                  <figcaption><span className="section-number" aria-hidden="true">02</span> Your tiles</figcaption>
+                  <PreviewBoard tiles={preview.start} label={`${preview.label} starting tiles`} />
                 </figure>
               </div>
             </section>
           ))}
         </div>
 
-        <p className="preview-footnote">The ancient-civilization motifs are decoration; no historical knowledge is needed to solve.</p>
+        <p className="preview-footnote">Pattern names are just labels. No special knowledge is needed to solve the puzzle.</p>
       </main>
 
-      <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>ART DIRECTION STUDY <span aria-hidden="true">✦</span></span></footer>
+      <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>MODE PREVIEW <span aria-hidden="true">✦</span></span></footer>
     </div>
   );
 }

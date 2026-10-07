@@ -32,10 +32,10 @@ test('serves a stable generated daily puzzle and starts gameplay with it', async
 
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /Daily Tile-Swap Puzzle/ })).toBeVisible();
-  await expect(page.getByText(`DAILY Nº ${release.releaseDate}`)).toBeVisible();
+  await expect(page.getByText(`DAILY PUZZLE · ${release.releaseDate}`)).toBeVisible();
   await page.getByRole('button', { name: 'Start puzzle' }).click();
-  await expect(page.getByRole('list', { name: 'Target arrangement' }).getByRole('listitem')).toHaveCount(36);
-  await expect(page.getByRole('group', { name: 'Your mosaic' }).getByRole('button')).toHaveCount(36);
+  await expect(page.getByRole('list', { name: 'Target pattern' }).getByRole('listitem')).toHaveCount(36);
+  await expect(page.getByRole('group', { name: 'Your tiles' }).getByRole('button')).toHaveCount(36);
 });
 
 test('replays v1 puzzle IDs after the v2 generator rollout', async ({ page }) => {
@@ -87,17 +87,17 @@ test.describe('release date rollover', () => {
   }));
 
   await page.goto('/');
-  await expect(page.getByText('DAILY Nº 2026-09-30')).toBeVisible();
+  await expect(page.getByText('DAILY PUZZLE · 2026-09-30')).toBeVisible();
   await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
-  const board = page.getByRole('group', { name: 'Your mosaic' }).getByRole('button');
+  const board = page.getByRole('group', { name: 'Your tiles' }).getByRole('button');
   await board.nth(0).click();
   await board.nth(1).click();
-  await expect(page.getByText('12 of 13 swaps remaining', { exact: true })).toBeVisible();
+  await expect(page.getByText('12 swaps left', { exact: true })).toBeVisible();
 
   await page.clock.fastForward(60_000);
 
-  await expect(page.getByText('DAILY Nº 2026-10-01')).toBeVisible();
-  await expect(page.getByText('13 of 13 swaps remaining', { exact: true })).toBeVisible();
+  await expect(page.getByText('DAILY PUZZLE · 2026-10-01')).toBeVisible();
+  await expect(page.getByText('13 swaps left', { exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('tile-puzzle-progress:v1'))).toBeNull();
   });
 });
@@ -140,22 +140,22 @@ test('retries a stale cached release when the page resumes after midnight', asyn
   });
 
   await page.goto('/');
-  await expect(page.getByText('DAILY Nº 2026-09-30')).toBeVisible();
+  await expect(page.getByText('DAILY PUZZLE · 2026-09-30')).toBeVisible();
   await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
-  const board = page.getByRole('group', { name: 'Your mosaic' }).getByRole('button');
+  const board = page.getByRole('group', { name: 'Your tiles' }).getByRole('button');
   await board.nth(0).click();
   await board.nth(1).click();
-  await expect(page.getByText('12 of 13 swaps remaining', { exact: true })).toBeVisible();
+  await expect(page.getByText('12 swaps left', { exact: true })).toBeVisible();
 
   await page.clock.setSystemTime(new Date('2026-10-01T04:00:00.000Z'));
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
 
   await expect.poll(() => releaseRequests).toBe(2);
-  await expect(page.getByText('Cached copy · 2026-09-30', { exact: true })).toBeVisible();
+  await expect(page.getByText('Using a saved copy of today’s puzzle', { exact: true })).toBeVisible();
   await page.evaluate(() => window.dispatchEvent(new Event('pageshow')));
 
-  await expect(page.getByText('DAILY Nº 2026-10-01')).toBeVisible();
-  await expect(page.getByText('13 of 13 swaps remaining', { exact: true })).toBeVisible();
+  await expect(page.getByText('DAILY PUZZLE · 2026-10-01')).toBeVisible();
+  await expect(page.getByText('13 swaps left', { exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('tile-puzzle-progress:v1'))).toBeNull();
 });
 
@@ -165,7 +165,7 @@ test('keeps the app and current puzzle playable after going offline', async ({ p
   const release = await todayResponse.json() as { releaseDate: string };
 
   await page.goto('/');
-  await expect(page.getByText(`DAILY Nº ${release.releaseDate}`)).toBeVisible();
+  await expect(page.getByText(`DAILY PUZZLE · ${release.releaseDate}`)).toBeVisible();
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
 
@@ -173,13 +173,13 @@ test('keeps the app and current puzzle playable after going offline', async ({ p
   await page.reload();
 
   await expect(page.getByRole('heading', { name: 'Choose your mode' })).toBeVisible();
-  await expect(page.getByText(`DAILY Nº ${release.releaseDate}`)).toBeVisible();
-  await expect(page.getByText(`Cached copy · ${release.releaseDate}`, { exact: true })).toBeVisible();
+  await expect(page.getByText(`DAILY PUZZLE · ${release.releaseDate}`)).toBeVisible();
+  await expect(page.getByText('Using a saved copy of today’s puzzle', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
-  const board = page.getByRole('group', { name: 'Your mosaic' }).getByRole('button');
+  const board = page.getByRole('group', { name: 'Your tiles' }).getByRole('button');
   await board.nth(0).click();
   await board.nth(1).click();
-  await expect(page.getByText('12 of 13 swaps remaining', { exact: true })).toBeVisible();
+  await expect(page.getByText('12 swaps left', { exact: true })).toBeVisible();
 });
 
 test('restores current-release progress from the cached puzzle while offline', async ({ page, context, browserName }) => {
@@ -188,12 +188,12 @@ test('restores current-release progress from the cached puzzle while offline', a
   const release = await todayResponse.json() as { puzzleId: string; releaseDate: string };
 
   await page.goto('/');
-  await expect(page.getByText(`DAILY Nº ${release.releaseDate}`)).toBeVisible();
+  await expect(page.getByText(`DAILY PUZZLE · ${release.releaseDate}`)).toBeVisible();
   await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
-  const board = page.getByRole('group', { name: 'Your mosaic' }).getByRole('button');
+  const board = page.getByRole('group', { name: 'Your tiles' }).getByRole('button');
   await board.nth(0).click();
   await board.nth(1).click();
-  await expect(page.getByText('12 of 13 swaps remaining', { exact: true })).toBeVisible();
+  await expect(page.getByText('12 swaps left', { exact: true })).toBeVisible();
 
   const savedProgress = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
   expect(savedProgress.puzzleId).toBe(release.puzzleId);
@@ -202,10 +202,10 @@ test('restores current-release progress from the cached puzzle while offline', a
   await context.setOffline(true);
   await page.reload();
 
-  await expect(page.getByText('12 of 13 swaps remaining', { exact: true })).toBeVisible();
-  await expect(page.getByText(`Cached copy · ${release.releaseDate}`, { exact: true })).toBeVisible();
-  const resumedBoard = page.getByRole('group', { name: 'Your mosaic' }).getByRole('button');
+  await expect(page.getByText('12 swaps left', { exact: true })).toBeVisible();
+  await expect(page.getByText('Using a saved copy of today’s puzzle', { exact: true })).toBeVisible();
+  const resumedBoard = page.getByRole('group', { name: 'Your tiles' }).getByRole('button');
   await resumedBoard.nth(2).click();
   await resumedBoard.nth(3).click();
-  await expect(page.getByText('11 of 13 swaps remaining', { exact: true })).toBeVisible();
+  await expect(page.getByText('11 swaps left', { exact: true })).toBeVisible();
 });

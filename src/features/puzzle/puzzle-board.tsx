@@ -8,7 +8,7 @@ export const describePosition = (position: number) => `Row ${Math.floor(position
 
 export function TargetBoard({ tiles }: { readonly tiles: readonly TileAppearance[] }) {
   return (
-    <ol className="tile-grid target-grid" aria-label="Target arrangement">
+    <ol className="tile-grid target-grid" aria-label="Target pattern">
       {tiles.map((tile, position) => (
         <li className="target-tile" key={position}>
           <span className="visually-hidden">{describePosition(position)}: {describeTile(tile)}</span>
@@ -65,7 +65,7 @@ export function PuzzleBoard({ state, onActivate, onCancel }: PuzzleBoardProps) {
   return (
     <fieldset
       className={`tile-grid playable-grid${terminal ? ` is-${state.status}` : ''}`}
-      aria-label="Your mosaic"
+      aria-label="Your tiles"
       aria-describedby="game-instruction keyboard-instruction"
     >
       {state.board.map((tile, position) => {

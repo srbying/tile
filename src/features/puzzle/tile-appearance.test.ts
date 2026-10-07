@@ -48,12 +48,12 @@ describe('visible tile equivalence', () => {
   it('transforms points clockwise around the tile center and inverts actual colors', () => {
     const result = visibleAppearance({ ...tile, motif: 'chevron', orientation: 90, inverted: true });
     expect(result.strokes).toEqual(['50,22 26,50 50,78', '76,22 52,50 76,78']);
-    expect(result.background).toBe('#245951');
-    expect(result.foreground).toBe('#fff9eb');
+    expect(result.background).toBe('#084888');
+    expect(result.foreground).toBe('#f7eee6');
   });
 
-  it('describes every configurable attribute for assistive technology', () => {
+  it('describes tile colors, shapes, and transforms in plain language', () => {
     expect(describeTile({ ...tile, orientation: 90, mirrored: true, inverted: true }))
-      .toBe('teal Greek key, bold lines, 90 degrees, mirrored, light motif on dark background');
+      .toBe('blue Angular maze, thick lines, rotated 90 degrees clockwise, flipped left to right, light pattern on dark tile');
   });
 });

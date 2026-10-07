@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { samplePuzzle } from '../src/features/puzzle/sample-puzzle';
 
-const board = (page: Page) => page.getByRole('group', { name: 'Your mosaic', exact: true });
+const board = (page: Page) => page.getByRole('group', { name: 'Your tiles', exact: true });
 const cell = (page: Page, row: number, column: number) =>
   board(page).getByRole('button', { name: new RegExp(`^Row ${row}, column ${column}:`) });
 const artworks = (page: Page) => board(page).locator('svg').evaluateAll((elements) => elements.map((element) => element.innerHTML));
@@ -91,12 +91,12 @@ test('keeps mode choices readable and selectable at phone widths', async ({ page
 test('starts a readable target and playable 36-cell board', async ({ page }) => {
   await startGame(page);
   await expect(page.getByRole('heading', { name: 'Daily Tile-Swap Puzzle.' })).toBeVisible();
-  await expect(page.getByText('Match the target. Tap two tiles to swap them.')).toBeVisible();
+  await expect(page.getByText('Look at the target, then select two tiles to swap.')).toBeVisible();
   await expect(page.getByText('Medium mode', { exact: true })).toBeVisible();
-  await expect(page.getByText('13 of 13 swaps remaining', { exact: true })).toBeVisible();
-  await expect(page.getByRole('list', { name: 'Target arrangement' }).getByRole('listitem')).toHaveCount(36);
+  await expect(page.getByText('13 swaps left', { exact: true })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Target pattern' }).getByRole('listitem')).toHaveCount(36);
   await expect(board(page).getByRole('button')).toHaveCount(36);
-  await expect(cell(page, 1, 1)).toHaveAccessibleName(/Row 1, column 1: teal Nested diamonds, bold lines/);
+  await expect(cell(page, 1, 1)).toHaveAccessibleName(/Row 1, column 1: blue Nested diamonds, thick lines/);
   await expect(cell(page, 1, 1)).toHaveAttribute('aria-pressed', 'false');
   await expect(cell(page, 1, 1)).toHaveAttribute('aria-disabled', 'false');
 });
@@ -106,13 +106,13 @@ test('choose difficulty pauses and resumes the same round with saved progress', 
   const [rowA, columnA, rowB, columnB] = solution[0];
   await cell(page, rowA, columnA).click();
   await cell(page, rowB, columnB).click();
-  await page.getByRole('button', { name: 'Use hint', exact: true }).click();
+  await page.getByRole('button', { name: 'Show hint', exact: true }).click();
   await cell(page, 4, 4).click();
 
   const boardBeforePause = await artworks(page);
   const savedBeforePause = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
   await page.waitForTimeout(120);
-  await page.getByRole('button', { name: 'Choose difficulty', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose mode', exact: true }).click();
 
   await expect(page.getByRole('heading', { name: 'Choose your mode' })).toBeVisible();
   await expect(page.locator('.mode-option').filter({ hasText: 'Hard' }).getByText('Paused', { exact: true })).toBeVisible();
@@ -129,15 +129,15 @@ test('choose difficulty pauses and resumes the same round with saved progress', 
 
   await resumeButton.click();
   await expect(board(page)).toBeVisible();
-  await expect(page.getByText('9 of 10 swaps left', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Use hint', exact: true })).toBeDisabled();
+  await expect(page.getByText('9 swaps left', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Show hint', exact: true })).toBeDisabled();
   await expect(board(page).locator('.is-hinted')).toHaveCount(2);
   await expect(board(page).getByRole('button', { pressed: true })).toHaveCount(0);
   expect(await artworks(page)).toEqual(boardBeforePause);
 
   await page.reload();
   await expect(board(page)).toBeVisible();
-  await expect(page.getByText('9 of 10 swaps left', { exact: true })).toBeVisible();
+  await expect(page.getByText('9 swaps left', { exact: true })).toBeVisible();
   await expect(board(page).locator('.is-hinted')).toHaveCount(2);
   expect(await artworks(page)).toEqual(boardBeforePause);
 });
@@ -149,7 +149,7 @@ test('confirms before replacing a paused round with another difficulty', async (
   await cell(page, rowB, columnB).click();
   const savedProgress = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
 
-  await page.getByRole('button', { name: 'Choose difficulty', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose mode', exact: true }).click();
   await page.getByRole('radio', { name: /^Easy\b/ }).check();
   await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
 
@@ -174,7 +174,7 @@ test('keeps the choose-difficulty control usable without horizontal overflow', a
   await startGame(page);
   for (const width of [320, 375, 1280]) {
     await page.setViewportSize({ width, height: 900 });
-    const button = page.getByRole('button', { name: 'Choose difficulty', exact: true });
+    const button = page.getByRole('button', { name: 'Choose mode', exact: true });
     await expect(button).toBeVisible();
     const buttonSize = await button.boundingBox();
     expect(buttonSize?.width).toBeGreaterThanOrEqual(44);
@@ -185,28 +185,28 @@ test('keeps the choose-difficulty control usable without horizontal overflow', a
 
 test('reports how many positions match the target through swaps and reloads', async ({ page }) => {
   await startGame(page);
-  const countText = page.getByText(/^\d+ of 36 tiles in place$/);
+  const countText = page.getByText(/^\d+ of 36 tiles match the target$/);
   const initialCount = await visuallyInPlaceCount(page);
-  await expect(countText).toHaveText(`${initialCount} of 36 tiles in place`);
+  await expect(countText).toHaveText(`${initialCount} of 36 tiles match the target`);
 
   const [firstRow, firstColumn, secondRow, secondColumn] = solution[0];
   await cell(page, firstRow, firstColumn).click();
   await cell(page, secondRow, secondColumn).click();
   const countAfterSwap = await visuallyInPlaceCount(page);
   expect(countAfterSwap).toBeGreaterThan(initialCount);
-  await expect(countText).toHaveText(`${countAfterSwap} of 36 tiles in place`);
-  await expect(page.getByRole('status')).toContainText(`${countAfterSwap} of 36 tiles in place`);
+  await expect(countText).toHaveText(`${countAfterSwap} of 36 tiles match the target`);
+  await expect(page.getByRole('status')).toContainText(`${countAfterSwap} of 36 tiles match the target`);
 
   await page.reload();
   await expect(board(page)).toBeVisible();
-  await expect(countText).toHaveText(`${countAfterSwap} of 36 tiles in place`);
+  await expect(countText).toHaveText(`${countAfterSwap} of 36 tiles match the target`);
 
   for (const [rowA, columnA, rowB, columnB] of solution.slice(1)) {
     await cell(page, rowA, columnA).click();
     await cell(page, rowB, columnB).click();
   }
-  await expect(page.getByText('36 of 36 tiles in place', { exact: true })).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('36 of 36 tiles in place');
+  await expect(page.getByText('36 of 36 tiles match the target', { exact: true })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('36 of 36 tiles match the target');
 });
 
 test('selects, cancels, reselects, and swaps whole artwork with pointer or touch', async ({ page, isMobile }) => {
@@ -224,7 +224,7 @@ test('selects, cancels, reselects, and swaps whole artwork with pointer or touch
   await activate(1, 1);
   await expect(cell(page, 1, 1)).toHaveAttribute('aria-pressed', 'false');
   await activate(2, 2);
-  await page.getByRole('button', { name: 'Clear selection', exact: true }).click();
+  await page.getByRole('button', { name: 'Cancel selection', exact: true }).click();
   expect(await artworks(page)).toEqual(before);
   await expect(cell(page, 2, 2)).toHaveAttribute('aria-pressed', 'false');
   await activate(1, 1);
@@ -239,7 +239,7 @@ test('selects, cancels, reselects, and swaps whole artwork with pointer or touch
 test('navigates the board with arrow keys and keeps Tab for entering and leaving', async ({ page, isMobile }) => {
   await startGame(page);
   const before = await artworks(page);
-  await page.getByRole('link', { name: 'Compare difficulty art' }).focus();
+  await page.getByRole('link', { name: 'Compare modes' }).focus();
   await page.keyboard.press('Tab');
   if (isMobile) {
     const targetZoomIsFocused = await page.getByRole('button', { name: 'View target larger' })
@@ -260,7 +260,7 @@ test('navigates the board with arrow keys and keeps Tab for entering and leaving
   )).toBe(1);
   await expect(cell(page, 1, 1)).toHaveAttribute('aria-pressed', 'true');
   expect(await artworks(page)).toEqual(before);
-  await expect(page.getByText('13 of 13 swaps remaining', { exact: true })).toBeVisible();
+  await expect(page.getByText('13 swaps left', { exact: true })).toBeVisible();
 
   await page.keyboard.press('Escape');
   await expect(board(page).getByRole('button', { pressed: true })).toHaveCount(0);
@@ -310,15 +310,15 @@ test('uses one productive hint without consuming a swap and marks the result ass
   const initialInPlaceCount = await visuallyInPlaceCount(page);
   await expect(page.locator('#hint-instruction')).toHaveCount(1);
   await expect(page.locator('#hint-instruction')).toBeEmpty();
-  await page.getByRole('button', { name: 'Use hint', exact: true }).click();
+  await page.getByRole('button', { name: 'Show hint', exact: true }).click();
 
   const hinted = board(page).locator('.is-hinted');
   await expect(hinted).toHaveCount(2);
   await expect(hinted.first()).toHaveAttribute('aria-describedby', 'hint-instruction');
   await expect(page.getByText(/Hint: Swap Row 1, column 1 with Row 3, column 3/)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Use hint', exact: true })).toBeDisabled();
-  await expect(page.getByText('13 of 13 swaps remaining', { exact: true })).toBeVisible();
-  await expect(page.getByText(`${initialInPlaceCount} of 36 tiles in place`, { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Show hint', exact: true })).toBeDisabled();
+  await expect(page.getByText('13 swaps left', { exact: true })).toBeVisible();
+  await expect(page.getByText(`${initialInPlaceCount} of 36 tiles match the target`, { exact: true })).toBeVisible();
   expect(await artworks(page)).toEqual(before);
   expect(await hinted.evaluateAll((elements) => elements.map((element) => Number(element.getAttribute('data-position')))))
     .toEqual([0, 14]);
@@ -336,10 +336,9 @@ test('uses one productive hint without consuming a swap and marks the result ass
     await activate((r2 - 1) * 6 + c2 - 1);
   }
 
-  await expect(page.getByRole('status')).toContainText('Puzzle complete');
-  await expect(page.locator('.round-result')).toContainText('Assisted (hint used)');
-  await expect(page.locator('.round-result')).toContainText(/Active time: \d+:\d{2}/);
-  await expect(page.locator('.round-result')).toContainText('Greek-key border around four inset diamonds.');
+  await expect(page.getByRole('status')).toContainText('Puzzle solved');
+  await expect(page.locator('.round-result')).toContainText('Hint used');
+  await expect(page.locator('.round-result')).toContainText(/Solve time: \d+:\d{2}/);
 });
 
 test('shares only spoiler-safe result text through the native share sheet', async ({ page }) => {
@@ -358,11 +357,11 @@ test('shares only spoiler-safe result text through the native share sheet', asyn
 
   await page.getByRole('button', { name: 'Share result', exact: true }).click();
 
-  await expect(page.locator('.result-share-feedback')).toHaveText('Share sheet opened.');
+  await expect(page.locator('.result-share-feedback')).toHaveText('Choose an app to share your result.');
   const shareCalls = await page.evaluate(() => (window as unknown as { __shareCalls: ShareData[] }).__shareCalls);
   expect(shareCalls).toEqual([{
     title: 'Daily Tile-Swap Puzzle',
-    text: 'Daily Tile-Swap Puzzle · 2026-09-29\nSolved · Medium mode · 10/13 swaps · Unassisted',
+    text: 'Daily Tile-Swap Puzzle · 2026-09-29\nSolved · Medium mode · 10/13 swaps · No hint',
   }]);
 });
 
@@ -385,9 +384,9 @@ test('copies a loss result when native sharing is unavailable and announces comp
   await page.getByRole('button', { name: 'Copy result', exact: true }).click();
 
   await expect(page.locator('.result-share-feedback')).toHaveAttribute('aria-live', 'polite');
-  await expect(page.locator('.result-share-feedback')).toHaveText('Result copied to clipboard.');
+  await expect(page.locator('.result-share-feedback')).toHaveText('Result copied.');
   expect(await page.evaluate(() => (window as unknown as { __copiedText?: string }).__copiedText))
-    .toBe('Daily Tile-Swap Puzzle · 2026-09-29\nNot solved · Hard mode · 10/10 swaps · Unassisted');
+    .toBe('Daily Tile-Swap Puzzle · 2026-09-29\nNot solved · Hard mode · 10/10 swaps · No hint');
 });
 
 test('announces when copying a result fails', async ({ page }) => {
@@ -408,7 +407,7 @@ test('announces when copying a result fails', async ({ page }) => {
   await page.getByRole('button', { name: 'Copy result', exact: true }).click();
 
   await expect(page.locator('.result-share-feedback')).toHaveAttribute('aria-live', 'polite');
-  await expect(page.locator('.result-share-feedback')).toHaveText('Could not copy result. Please try again.');
+  await expect(page.locator('.result-share-feedback')).toHaveText('Could not copy result. Try again.');
 });
 
 test('does not copy when the player cancels native sharing', async ({ page }) => {
@@ -430,7 +429,7 @@ test('does not copy when the player cancels native sharing', async ({ page }) =>
 
   await page.getByRole('button', { name: 'Share result', exact: true }).click();
 
-  await expect(page.locator('.result-share-feedback')).toHaveText('Sharing canceled.');
+  await expect(page.locator('.result-share-feedback')).toHaveText('Share canceled.');
   expect(await page.evaluate(() => (window as unknown as { __copyCalls: number }).__copyCalls)).toBe(0);
 });
 
@@ -447,14 +446,13 @@ for (const input of ['pointer', 'keyboard'] as const) {
         else await tile.click();
       }
     }
-    await expect(page.getByRole('status')).toHaveText('✓36 of 36 tiles in place. Puzzle complete. The pattern is restored.');
+    await expect(page.getByRole('status')).toHaveText('✓Puzzle solved. All 36 tiles match the target.');
     const completed = await artworks(page);
-    const target = await page.getByRole('list', { name: 'Target arrangement' }).locator('svg')
+    const target = await page.getByRole('list', { name: 'Target pattern' }).locator('svg')
       .evaluateAll((elements) => elements.map((element) => element.innerHTML));
     expect(completed).toEqual(target);
-    await expect(page.locator('.round-result')).toContainText('Unassisted');
-    await expect(page.locator('.round-result')).toContainText(/Active time: \d+:\d{2}/);
-    await expect(page.locator('.round-result')).toContainText('Greek-key border around four inset diamonds.');
+    await expect(page.locator('.round-result')).toContainText('No hint');
+    await expect(page.locator('.round-result')).toContainText(/Solve time: \d+:\d{2}/);
     await expect(board(page).getByRole('button', { pressed: true })).toHaveCount(0);
     await expect(board(page).getByRole('button', { disabled: true })).toHaveCount(36);
     await expect(board(page)).toHaveClass(/is-won/);
@@ -472,7 +470,7 @@ for (const input of ['pointer', 'keyboard'] as const) {
       await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     }
     expect(await artworks(page)).toEqual(completed);
-    await expect(page.getByRole('status')).toContainText('Puzzle complete');
+    await expect(page.getByRole('status')).toContainText('Puzzle solved');
   });
 }
 
@@ -535,9 +533,9 @@ test('pins a compact target and restores the mobile puzzle after enlarged view',
   const closeButton = dialog.getByRole('button', { name: 'Close enlarged target' });
   const returnButton = dialog.getByRole('button', { name: 'Return to puzzle' });
   await expect(closeButton).toBeFocused();
-  await expect(dialog.getByRole('list', { name: 'Target arrangement' }).getByRole('listitem')).toHaveCount(36);
+  await expect(dialog.getByRole('list', { name: 'Target pattern' }).getByRole('listitem')).toHaveCount(36);
   const previewSize = await targetSection.locator('.target-grid').boundingBox();
-  const enlargedSize = await dialog.getByRole('list', { name: 'Target arrangement' }).boundingBox();
+  const enlargedSize = await dialog.getByRole('list', { name: 'Target pattern' }).boundingBox();
   expect(enlargedSize!.width).toBeGreaterThan(previewSize!.width * 1.8);
   await page.keyboard.press('Tab');
   await expect(returnButton).toBeFocused();
@@ -548,7 +546,7 @@ test('pins a compact target and restores the mobile puzzle after enlarged view',
   await expect(dialog).not.toBeVisible();
   await expect(opener).toBeFocused();
   await expect(selectedTile).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByText('13 of 13 swaps remaining', { exact: true })).toBeVisible();
+  await expect(page.getByText('13 swaps left', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => window.scrollY)).toBe(scrollPosition);
 
   await opener.click();
@@ -571,26 +569,25 @@ test('pins a compact target and restores the mobile puzzle after enlarged view',
 
 test('a loss on the final Hard attempt colors and locks the full board', async ({ page }) => {
   await startGame(page, 'Hard');
-  await expect(page.getByText('10 of 10 swaps remaining', { exact: true })).toBeVisible();
+  await expect(page.getByText('10 swaps left', { exact: true })).toBeVisible();
 
   for (let attempt = 0; attempt < 10; attempt++) {
     await cell(page, 1, 1).click();
     await cell(page, 1, 2).click();
   }
 
-  await expect(page.getByRole('status')).toContainText('No attempts remaining');
+  await expect(page.getByRole('status')).toContainText('No match after 10 swaps');
   await expect(page.locator('.round-result').getByText('Hard mode', { exact: true })).toBeVisible();
-  await expect(page.locator('.round-result').getByText('10 of 10 swaps used', { exact: true })).toBeVisible();
-  await expect(page.locator('.round-result')).toContainText('Unassisted');
-  await expect(page.locator('.round-result')).toContainText(/Active time: \d+:\d{2}/);
-  await expect(page.locator('.round-result')).toContainText('Greek-key border around four inset diamonds.');
+  await expect(page.locator('.round-result').getByText('No match after 10 swaps', { exact: true })).toBeVisible();
+  await expect(page.locator('.round-result')).toContainText('No hint');
+  await expect(page.locator('.round-result')).toContainText(/Solve time: \d+:\d{2}/);
   await expect(board(page)).toHaveClass(/is-lost/);
   await expect(board(page).getByRole('button', { disabled: true })).toHaveCount(36);
   await expect(board(page).locator('.outcome-mark')).toHaveCount(36);
   const inPlaceCount = await visuallyInPlaceCount(page);
   expect(inPlaceCount).toBeLessThan(36);
-  await expect(page.getByText(`${inPlaceCount} of 36 tiles in place`, { exact: true })).toBeVisible();
-  await expect(page.getByRole('status')).toContainText(`${inPlaceCount} of 36 tiles in place`);
+  await expect(page.getByText(`${inPlaceCount} of 36 tiles match the target`, { exact: true })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText(`${inPlaceCount} of 36 tiles match the target`);
   expect(await page.evaluate(() => localStorage.getItem('tile-puzzle-progress:v1'))).toBeNull();
 });
 
@@ -600,9 +597,9 @@ test('Hard mode wins on its tenth and final attempt', async ({ page }) => {
     await cell(page, r1, c1).click();
     await cell(page, r2, c2).click();
   }
-  await expect(page.getByRole('status')).toContainText('Puzzle complete');
+  await expect(page.getByRole('status')).toContainText('Puzzle solved');
   await expect(page.locator('.round-result').getByText('Hard mode', { exact: true })).toBeVisible();
-  await expect(page.locator('.round-result').getByText('10 of 10 swaps used', { exact: true })).toBeVisible();
+  await expect(page.locator('.round-result').getByText('Solved in 10 of 10 swaps', { exact: true })).toBeVisible();
   await expect(board(page)).toHaveClass(/is-won/);
   expect(await page.evaluate(() => localStorage.getItem('tile-puzzle-progress:v1'))).toBeNull();
 });
@@ -620,8 +617,8 @@ test('reviews a finished win after reload and keeps sharing available', async ({
   await solvePuzzle(page);
 
   const solvedArtwork = await artworks(page);
-  const activeTime = await page.locator('.round-result').getByText(/^Active time:/).innerText();
-  await page.getByRole('button', { name: 'Choose difficulty', exact: true }).click();
+  const activeTime = await page.locator('.round-result').getByText(/^Solve time:/).innerText();
+  await page.getByRole('button', { name: 'Choose mode', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Choose your mode' })).toBeVisible();
   await expect(page.locator('.mode-option').filter({ hasText: 'Medium' }).getByText('Finished', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Review finished puzzle', exact: true })).toBeVisible();
@@ -632,19 +629,19 @@ test('reviews a finished win after reload and keeps sharing available', async ({
   await page.getByRole('button', { name: 'Review finished puzzle', exact: true }).click();
 
   await expect(board(page)).toHaveClass(/is-won/);
-  await expect(page.getByText('10 of 13 swaps used', { exact: true })).toBeVisible();
-  await expect(page.locator('.round-result').getByText(/^Active time:/)).toHaveText(activeTime);
+  await expect(page.getByText('Solved in 10 of 13 swaps', { exact: true })).toBeVisible();
+  await expect(page.locator('.round-result').getByText(/^Solve time:/)).toHaveText(activeTime);
   expect(await artworks(page)).toEqual(solvedArtwork);
   await page.getByRole('button', { name: 'Copy result', exact: true }).click();
-  await expect(page.locator('.result-share-feedback')).toHaveText('Result copied to clipboard.');
+  await expect(page.locator('.result-share-feedback')).toHaveText('Result copied.');
   expect(await page.evaluate(() => (window as unknown as { __copiedText?: string }).__copiedText))
-    .toBe('Daily Tile-Swap Puzzle · 2026-09-29\nSolved · Medium mode · 10/13 swaps · Unassisted');
+    .toBe('Daily Tile-Swap Puzzle · 2026-09-29\nSolved · Medium mode · 10/13 swaps · No hint');
 
-  await page.getByRole('button', { name: 'Choose difficulty', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose mode', exact: true }).click();
   await page.getByRole('radio', { name: /^Easy\b/ }).check();
   await expect(page.getByRole('button', { name: 'Start puzzle', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
-  await expect(page.locator('.mode-badge')).toHaveText('Easy');
+  await expect(page.locator('.mode-badge')).toHaveText('Easy mode');
 });
 
 test('locks a finished loss while leaving other difficulties playable', async ({ page }) => {
@@ -653,7 +650,7 @@ test('locks a finished loss while leaving other difficulties playable', async ({
     await cell(page, 1, 1).click();
     await cell(page, 1, 2).click();
   }
-  await page.getByRole('button', { name: 'Choose difficulty', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose mode', exact: true }).click();
 
   await expect(page.locator('.mode-option').filter({ hasText: 'Hard' }).getByText('Finished', { exact: true })).toBeVisible();
   await page.getByRole('radio', { name: /^Medium\b/ }).check();
@@ -663,17 +660,17 @@ test('locks a finished loss while leaving other difficulties playable', async ({
   await page.getByRole('button', { name: 'Review finished puzzle', exact: true }).click();
 
   await expect(board(page)).toHaveClass(/is-lost/);
-  await expect(page.getByText('10 of 10 swaps used', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Choose another difficulty', exact: true }).click();
+  await expect(page.getByText('No match after 10 swaps', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Choose another mode', exact: true }).click();
   await page.getByRole('radio', { name: /^Medium\b/ }).check();
   await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
-  await expect(page.locator('.mode-badge')).toHaveText('Medium');
+  await expect(page.locator('.mode-badge')).toHaveText('Medium mode');
 });
 
 test('makes all difficulties playable for a new daily puzzle', async ({ page }) => {
   await startGame(page, 'Medium');
   await solvePuzzle(page);
-  await page.getByRole('button', { name: 'Choose another difficulty', exact: true }).click();
+  await page.getByRole('button', { name: 'Choose another mode', exact: true }).click();
 
   const nextPuzzleId = 'daily-v1-2026-09-30-0-0';
   const nextPuzzle = { ...samplePuzzle, id: nextPuzzleId };
@@ -691,7 +688,7 @@ test('makes all difficulties playable for a new daily puzzle', async ({ page }) 
   }));
   await page.reload();
 
-  await expect(page.getByText('DAILY Nº 2026-09-30')).toBeVisible();
+  await expect(page.getByText('DAILY PUZZLE · 2026-09-30')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start puzzle', exact: true })).toBeEnabled();
   await expect(page.getByText('Finished', { exact: true })).toHaveCount(0);
 });
@@ -711,7 +708,7 @@ test('reload resumes saved mode, board, attempts, hint, and active time', async 
   await startGame(page, 'Hard');
   await cell(page, 1, 1).click();
   await cell(page, 1, 2).click();
-  await page.getByRole('button', { name: 'Use hint', exact: true }).click();
+  await page.getByRole('button', { name: 'Show hint', exact: true }).click();
   const boardBeforeReload = await artworks(page);
   const savedBeforeReload = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
   expect(savedBeforeReload).toMatchObject({
@@ -731,8 +728,8 @@ test('reload resumes saved mode, board, attempts, hint, and active time', async 
   await page.reload();
 
   await expect(page.getByText('Hard mode', { exact: true })).toBeVisible();
-  await expect(page.getByText('9 of 10 swaps remaining', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Use hint', exact: true })).toBeDisabled();
+  await expect(page.getByText('9 swaps left', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Show hint', exact: true })).toBeDisabled();
   await expect(board(page).locator('.is-hinted')).toHaveCount(2);
   expect(await artworks(page)).toEqual(boardBeforeReload);
   expect(puzzleRequests).toContain('/api/puzzles/today');

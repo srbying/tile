@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { samplePuzzle } from '../src/features/puzzle/sample-puzzle';
 
-const board = (page: Page) => page.getByRole('group', { name: 'Your mosaic', exact: true });
+const board = (page: Page) => page.getByRole('group', { name: 'Your tiles', exact: true });
 
 const solution = [
   [1, 1, 3, 3], [1, 2, 4, 4], [1, 4, 5, 2], [1, 6, 4, 1], [2, 1, 5, 6],
@@ -175,7 +175,7 @@ test('keeps visible game text and tile artwork above WCAG AA contrast thresholds
   await expectMarkerContrast(page, '.selection-mark', 1, 'selection');
   await firstCell.click();
 
-  await page.getByRole('button', { name: 'Use hint', exact: true }).click();
+  await page.getByRole('button', { name: 'Show hint', exact: true }).click();
   await expectTextContrast(page, 'hint');
   await expectMarkerContrast(page, '.hint-mark', 2, 'hint');
 
@@ -183,7 +183,7 @@ test('keeps visible game text and tile artwork above WCAG AA contrast thresholds
     await board(page).getByRole('button', { name: new RegExp('^Row ' + r1 + ', column ' + c1 + ':') }).click();
     await board(page).getByRole('button', { name: new RegExp('^Row ' + r2 + ', column ' + c2 + ':') }).click();
   }
-  await expect(page.getByRole('status')).toContainText('Puzzle complete');
+  await expect(page.getByRole('status')).toContainText('Puzzle solved');
   await expect(board(page).locator('.outcome-mark')).toHaveCount(36);
   await expect(board(page).locator('.outcome-mark').first()).toHaveText('✓');
   await expectMarkerContrast(page, '.outcome-mark', 36, 'win');
@@ -196,7 +196,7 @@ test('keeps visible game text and tile artwork above WCAG AA contrast thresholds
     await board(page).getByRole('button', { name: /^Row 1, column 1:/ }).click();
     await board(page).getByRole('button', { name: /^Row 1, column 2:/ }).click();
   }
-  await expect(page.getByRole('status')).toContainText('No attempts remaining');
+  await expect(page.getByRole('status')).toContainText('No match after 10 swaps');
   await expect(board(page).locator('.outcome-mark')).toHaveCount(36);
   await expect(board(page).locator('.outcome-mark').first()).toHaveText('×');
   await expectMarkerContrast(page, '.outcome-mark', 36, 'failure');
@@ -233,13 +233,13 @@ test('keeps swap, hint, win, and failure feedback clear with reduced motion', as
   const secondCell = board(page).getByRole('button', { name: /^Row 3, column 3:/ });
   await firstCell.click();
   await secondCell.click();
-  await expect(page.getByText('12 of 13 swaps remaining', { exact: true })).toBeVisible();
+  await expect(page.getByText('12 swaps left', { exact: true })).toBeVisible();
   await expectStaticFeedback(page, 'swap');
   await firstCell.click();
   await secondCell.click();
-  await expect(page.getByText('11 of 13 swaps remaining', { exact: true })).toBeVisible();
+  await expect(page.getByText('11 swaps left', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Use hint', exact: true }).click();
+  await page.getByRole('button', { name: 'Show hint', exact: true }).click();
   await expect(board(page).locator('.hint-mark')).toHaveCount(2);
   await expect(page.locator('#hint-instruction')).toContainText('Hint: Swap');
   await expectStaticFeedback(page, 'hint');
@@ -247,7 +247,7 @@ test('keeps swap, hint, win, and failure feedback clear with reduced motion', as
     await board(page).getByRole('button', { name: new RegExp('^Row ' + r1 + ', column ' + c1 + ':') }).click();
     await board(page).getByRole('button', { name: new RegExp('^Row ' + r2 + ', column ' + c2 + ':') }).click();
   }
-  await expect(page.getByRole('status')).toContainText('Puzzle complete');
+  await expect(page.getByRole('status')).toContainText('Puzzle solved');
   await expect(board(page).locator('.outcome-mark').first()).toHaveText('✓');
   await expectStaticFeedback(page, 'win');
 
@@ -257,7 +257,7 @@ test('keeps swap, hint, win, and failure feedback clear with reduced motion', as
     await board(page).getByRole('button', { name: /^Row 1, column 1:/ }).click();
     await board(page).getByRole('button', { name: /^Row 1, column 2:/ }).click();
   }
-  await expect(page.getByRole('status')).toContainText('No attempts remaining');
+  await expect(page.getByRole('status')).toContainText('No match after 10 swaps');
   await expect(board(page).locator('.outcome-mark').first()).toHaveText('×');
   await expectStaticFeedback(page, 'failure');
 });

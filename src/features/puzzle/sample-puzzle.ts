@@ -10,7 +10,7 @@ const diamond = (color: TileColor, inverted = false): TileAppearance => ({
   motif: 'diamond', color, strokeWeight: inverted ? 7 : 4, orientation: 0, inverted, mirrored: false,
 });
 
-// Row-major mosaic: a Greek-key border around four inset diamonds.
+// Row-major mosaic: an angular-maze border around four inset diamonds.
 const target: readonly TileAppearance[] = [
   key(0), key(0), key(0), key(0), key(0), key(90, true),
   key(270), diamond('terracotta'), arrow(0, 'teal'), arrow(0, 'terracotta'), diamond('terracotta'), key(90),
@@ -33,7 +33,7 @@ for (const [left, right] of sampleSolution) [start[left], start[right]] = [start
 export const samplePuzzle: PuzzleDefinition = {
   id: 'sample-mosaic-01',
   title: 'The courtyard',
-  motifDescription: 'Greek-key border around four inset diamonds.',
+  motifDescription: 'Angular maze border around four inset diamonds.',
   size: 6,
   target,
   start,
