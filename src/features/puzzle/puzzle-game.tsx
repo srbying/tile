@@ -23,28 +23,17 @@ import {
   stopActiveSolveTimer,
 } from './active-solve-timer';
 
-function MosaicMark() {
-  return (
-    <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true" focusable="false">
-      <path d="M15 1 29 15 15 29 1 15Z" fill="currentColor" />
-      <path d="m15 7 8 8-8 8-8-8Z" fill="none" stroke="#f5f0e5" strokeWidth="2" />
-      <path d="m15 12 3 3-3 3-3-3Z" fill="#f5f0e5" />
-    </svg>
-  );
-}
-
 function GameHeader() {
   return (
     <header className="site-header">
-      <a className="wordmark" href="#main"><MosaicMark /><span>TILE-SWAP PUZZLE</span></a>
+      <a className="wordmark" href="/">TILE-SWAP PUZZLE</a>
       <a className="preview-navigation-link" href="/preview">Compare difficulty art</a>
-      <span className="edition">A moment of order</span>
     </header>
   );
 }
 
 function GameFooter({ releaseDate }: { readonly releaseDate?: string } = {}) {
-  return <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>{releaseDate ? `DAILY PUZZLE · ${releaseDate}` : 'SAMPLE COLLECTION'} <span aria-hidden="true">✦</span></span><a href="/author">Offline authoring</a></footer>;
+  return <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>{releaseDate ? `DAILY PUZZLE · ${releaseDate}` : 'SAMPLE COLLECTION'}</span><a href="/author">Offline authoring</a></footer>;
 }
 
 function validatePuzzleCompletions(
@@ -93,8 +82,7 @@ function ModeSelection({
       <GameHeader />
       <main id="main">
         <section className="intro mode-intro" aria-labelledby="game-title">
-          <div className="eyebrow"><span className="small-rule" /> AN EVERYDAY MOSAIC</div>
-          <h1 id="game-title">Daily Tile-Swap Puzzle<span className="title-dot">.</span></h1>
+          <h1 id="game-title">Daily Tile-Swap Puzzle</h1>
           <p className="intro-copy">Choose a challenge. Same daily mosaic, same tile placement.</p>
           <div className="puzzle-caption"><span className="sample-badge">DAILY Nº {releaseDate}</span>{cachedCopy && <span className="cached-copy-label">Cached copy · {releaseDate}</span>}<span>{puzzle.title}</span></div>
         </section>
@@ -364,16 +352,15 @@ function PuzzleRound({
       <GameHeader />
       <main id="main">
         <section className="intro puzzle-intro" aria-labelledby="game-title">
-          <div className="eyebrow"><span className="small-rule" /> AN EVERYDAY MOSAIC</div>
-          <h1 id="game-title">Daily Tile-Swap Puzzle<span className="title-dot">.</span></h1>
+          <div className="puzzle-caption"><span className="sample-badge">DAILY Nº {release.releaseDate}</span>{cachedCopy && <span className="cached-copy-label">Cached copy · {release.releaseDate}</span>}<span className="mode-badge">{tier.label}</span><span className="visually-hidden">{release.puzzle.title}</span></div>
+          <h1 id="game-title">Daily Tile-Swap Puzzle</h1>
           <p id="game-instruction" className="intro-copy">Match the target. Tap two tiles to swap them.</p>
-          <div className="puzzle-caption"><span className="sample-badge">DAILY Nº {release.releaseDate}</span>{cachedCopy && <span className="cached-copy-label">Cached copy · {release.releaseDate}</span>}<span>{release.puzzle.title}</span><span className="mode-badge">{tier.label} mode</span></div>
         </section>
 
         <div className="game-layout">
           <section className="board-section target-section" aria-labelledby="target-heading">
             <div className="board-heading">
-              <h2 id="target-heading"><span className="section-number">01</span> The target</h2>
+              <h2 id="target-heading">The target</h2>
               <span className="board-tag">LOOK CLOSELY</span>
             </div>
             <div className="target-reference-row">
@@ -397,7 +384,7 @@ function PuzzleRound({
 
           <section className="board-section player-section" aria-labelledby="board-heading">
             <div className="board-heading">
-              <h2 id="board-heading"><span className="section-number">02</span> Your mosaic</h2>
+              <h2 id="board-heading">Your mosaic</h2>
               <span className={`board-tag progress-tag${won ? ' complete-tag' : ''}${lost ? ' failed-tag' : ''}`}>
                 <span aria-hidden="true">{won ? '✓' : lost ? '×' : '○'}</span> {won ? 'RESTORED' : lost ? 'OUT OF SWAPS' : 'IN PROGRESS'}
               </span>
@@ -407,10 +394,32 @@ function PuzzleRound({
               onActivate={activatePosition}
               onCancel={() => dispatch({ type: 'cancel' })}
             />
+          </section>
+
+          <div className="round-tools">
             <p className="attempt-count">
-              <span>{tilesInPlace} of 36 tiles in place</span>
-              <span>{attemptsRemaining} of {state.attemptLimit} swaps remaining</span>
+              <span className="progress-stat">
+                <span className="progress-glyph" aria-hidden="true"><i /><i /><i /><i /></span>
+                <span className="stat-copy">{tilesInPlace} of 36 tiles in place</span>
+              </span>
+              <span className="swap-stat">
+                <svg className="swap-glyph" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+                  <path d="M8 15h27l-6-6m6 6-6 6" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M40 33H13l6 6m-6-6 6-6" fill="none" stroke="#084888" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span className="stat-copy">{attemptsRemaining} of {state.attemptLimit} swaps left</span>
+              </span>
             </p>
+
+            <div className="game-actions">
+              <button className="hint-button" type="button" disabled={state.hintUsed || terminal} onClick={useHint}>
+                Use hint
+              </button>
+              <button className="clear-selection" type="button" tabIndex={0} disabled={selected === null || terminal} onClick={() => dispatch({ type: 'cancel' })}>
+                Clear selection
+              </button>
+            </div>
+
             {terminal && (
               <div className={`round-result${won ? ' won-result' : ' lost-result'}`} aria-label="Round result">
                 <strong>{tier.label} mode</strong>
@@ -431,17 +440,14 @@ function PuzzleRound({
                 </div>
               </div>
             )}
+
             <div className={`game-feedback${won ? ' complete-feedback' : ''}${lost ? ' failed-feedback' : ''}`}>
-              <output aria-live="polite" aria-atomic="true">
+              <output className="visually-hidden" aria-live="polite" aria-atomic="true">
                 <span className="feedback-icon" aria-hidden="true">{won ? '✓' : lost ? '×' : '↔'}</span>{message}
               </output>
               <p className="hint-instruction" id="hint-instruction" aria-live="polite">{hintMessage ?? ''}</p>
-              <div className="game-actions">
-                <button className="clear-selection" type="button" tabIndex={0} disabled={selected === null || terminal} onClick={() => dispatch({ type: 'cancel' })}>Clear selection</button>
-                <button className="hint-button" type="button" disabled={state.hintUsed || terminal} onClick={useHint}>Use hint</button>
-              </div>
             </div>
-          </section>
+          </div>
 
           <dialog
             className="target-enlargement-dialog"
@@ -491,9 +497,9 @@ function PuzzleRound({
         </div>
 
         <aside className="how-to-play" aria-label="Playing tips">
-          <p><span className="tip-number">1</span> Pick a tile.</p>
-          <p><span className="tip-number">2</span> Pick another. They trade places.</p>
-          <p><span className="tip-number">3</span> Bring the pattern together.</p>
+          <p><span className="tip-number">1</span> Tap a tile to select it.</p>
+          <p><span className="tip-number">2</span> Tap a second tile to swap them.</p>
+          <p><span className="tip-number">3</span> Keep swapping until your mosaic matches the target.</p>
         </aside>
         <p className="keyboard-note" id="keyboard-instruction">Keyboard: Tab to the board; use arrow keys to move between tiles. Enter or Space selects and swaps; Escape clears selection. Tab or Shift+Tab leaves the board.<br />Moving focus alone never changes the board. Tap a selected tile again to cancel. Each swap uses one attempt.</p>
       </main>

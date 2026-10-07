@@ -146,8 +146,7 @@ export function PuzzleAuthoringPage() {
       </header>
       <main id="main">
         <section className="intro preview-intro" aria-labelledby="authoring-title">
-          <div className="eyebrow"><span className="small-rule" /> OFFLINE PUZZLE WORKSHOP</div>
-          <h1 id="authoring-title">Puzzle authoring<span className="title-dot">.</span></h1>
+          <h1 id="authoring-title">Puzzle authoring</h1>
           <p className="intro-copy">Load or edit candidate JSON, validate visible play, and preview every difficulty tier.</p>
           <div className="puzzle-caption"><span className="sample-badge">DAILY SEED</span><span>{editorDate}</span></div>
         </section>

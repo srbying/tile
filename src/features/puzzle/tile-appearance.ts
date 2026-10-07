@@ -5,12 +5,18 @@ type Point = readonly [number, number];
 type Stroke = readonly Point[];
 
 const colors: Record<TileColor, string> = {
-  teal: '#245951',
-  terracotta: '#a7432e',
-  indigo: '#365092',
-  ochre: '#a56f16',
+  teal: '#084888',
+  terracotta: '#dc4e36',
+  indigo: '#08486f',
+  ochre: '#f8c954',
 };
-const cream = '#fff9eb';
+const cream = '#f7eee6';
+const colorNames: Record<TileColor, string> = {
+  teal: 'Aegean blue',
+  terracotta: 'coral',
+  indigo: 'deep sea blue',
+  ochre: 'gold',
+};
 const pathToken = /[A-Za-z]|[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?/g;
 const transformedStrokes = new Map<string, readonly string[]>();
 
@@ -204,5 +210,5 @@ export const visualKey = (tile: TileAppearance) => JSON.stringify(visibleAppeara
 export const sameAppearance = (left: TileAppearance, right: TileAppearance) => visualKey(left) === visualKey(right);
 
 export function describeTile(tile: TileAppearance): string {
-  return `${tile.color} ${motifs[tile.motif].label}, ${tile.strokeWeight === 7 ? 'bold' : 'fine'} lines, ${tile.orientation} degrees${tile.mirrored ? ', mirrored' : ''}${tile.inverted ? ', light motif on dark background' : ', dark motif on light background'}`;
+  return `${colorNames[tile.color]} ${motifs[tile.motif].label}, ${tile.strokeWeight === 7 ? 'bold' : 'fine'} lines, ${tile.orientation} degrees${tile.mirrored ? ', mirrored' : ''}${tile.inverted ? ', light motif on dark background' : ', dark motif on light background'}`;
 }

@@ -36,8 +36,7 @@ export function DifficultyPreviewPage() {
 
       <main id="main">
         <section className="intro preview-intro" aria-labelledby="preview-title">
-          <div className="eyebrow"><span className="small-rule" /> VISUAL DIFFICULTY STUDY</div>
-          <h1 id="preview-title">Difficulty art preview<span className="title-dot">.</span></h1>
+          <h1 id="preview-title">Difficulty art preview</h1>
           <p className="intro-copy">Same courtyard. Same tile placement. Three visual tiers.</p>
         </section>
 
