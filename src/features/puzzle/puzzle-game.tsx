@@ -44,7 +44,7 @@ function GameHeader({ onChooseDifficulty }: { readonly onChooseDifficulty?: () =
 }
 
 function GameFooter({ releaseDate }: { readonly releaseDate?: string } = {}) {
-  return <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>{releaseDate ? `DAILY PUZZLE · ${releaseDate}` : 'SAMPLE PUZZLES'}</span><a href="/author">Puzzle editor</a></footer>;
+  return <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>{releaseDate ? `Daily puzzle · ${releaseDate}` : 'Sample puzzles'}</span><a href="/author">Puzzle editor</a></footer>;
 }
 
 function validatePuzzleCompletions(
@@ -127,7 +127,7 @@ function ModeSelection({
   };
 
   return (
-    <div className="page-shell">
+    <div className="page-shell player-shell">
       <GameHeader />
       <main id="main">
         <section className="intro mode-intro" aria-labelledby="game-title">
@@ -439,7 +439,7 @@ function PuzzleRound({
   };
 
   return (
-    <div className="page-shell">
+    <div className="page-shell player-shell">
       <GameHeader onChooseDifficulty={returnToModes} />
       <main id="main">
         <section className="intro puzzle-intro" aria-labelledby="game-title">
@@ -495,7 +495,7 @@ function PuzzleRound({
               <span className="swap-stat">
                 <svg className="swap-glyph" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
                   <path d="M8 15h27l-6-6m6 6-6 6" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M40 33H13l6 6m-6-6 6-6" fill="none" stroke="#084888" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M40 33H13l6 6m-6-6 6-6" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <span className="stat-copy">{attemptsRemaining} swaps left</span>
               </span>
@@ -608,7 +608,7 @@ const loadingTileTones = [
 
 function LoadingPuzzle() {
   return (
-    <div className="page-shell loading-shell">
+    <div className="page-shell loading-shell player-shell">
       <GameHeader />
       <main id="main" className="loading-main">
         <section className="loading-content" aria-label="Daily puzzle loading">
@@ -632,10 +632,12 @@ function LoadingPuzzle() {
 
 function PuzzleLoadError({ onRetry }: { readonly onRetry: () => void }) {
   return (
-    <main id="main" className="page-shell">
+    <main id="main" className="page-shell player-shell">
       <section className="daily-load-message" aria-labelledby="daily-error-heading">
-        <h1 id="daily-error-heading">We couldn’t load today’s puzzle</h1>
-        <p>Please try again.</p>
+        <div role="alert">
+          <h1 id="daily-error-heading">We couldn’t load today’s puzzle</h1>
+          <p>Please try again.</p>
+        </div>
         <button className="start-puzzle" type="button" onClick={onRetry}>Try again</button>
       </section>
     </main>

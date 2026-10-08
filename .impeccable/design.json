@@ -1,0 +1,471 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-07T23:47:55Z",
+  "title": "Design System: Tile-Swap Puzzle — Aegean Fresco Restoration",
+  "extensions": {
+    "colorMeta": {
+      "aegean-field": {
+        "role": "primary",
+        "displayName": "Aegean Blue",
+        "canonical": "#154a67",
+        "tonalRamp": [
+          "#154a67",
+          "oklch(15% 0.073 237.3)",
+          "oklch(25% 0.073 237.3)",
+          "oklch(35% 0.073 237.3)",
+          "oklch(45% 0.073 237.3)",
+          "oklch(55% 0.073 237.3)",
+          "oklch(65% 0.073 237.3)",
+          "oklch(75% 0.073 237.3)"
+        ]
+      },
+      "deep-sea": {
+        "role": "neutral",
+        "displayName": "Deep Sea Blue",
+        "canonical": "#103a54",
+        "tonalRamp": [
+          "#103a54",
+          "#1a5776",
+          "#47728a",
+          "oklch(15% 0.065 240.3)",
+          "oklch(25% 0.065 240.3)",
+          "oklch(35% 0.065 240.3)",
+          "oklch(45% 0.065 240.3)",
+          "oklch(55% 0.065 240.3)"
+        ]
+      },
+      "warm-ivory": {
+        "role": "neutral",
+        "displayName": "Warm Ivory",
+        "canonical": "#f5f1e8",
+        "tonalRamp": [
+          "#f5f1e8",
+          "#d4dcd8",
+          "#e5e0d5",
+          "#d8e2df",
+          "#e4ece8",
+          "#d9e7e3",
+          "#fff9f0",
+          "#d8e7e4"
+        ]
+      },
+      "cyan-register": {
+        "role": "secondary",
+        "displayName": "Cyan Register",
+        "canonical": "#b6d6d5",
+        "tonalRamp": [
+          "#b6d6d5",
+          "#136d7e",
+          "#2290a1",
+          "#08758a",
+          "#adf3f2",
+          "oklch(15% 0.034 194.2)",
+          "oklch(25% 0.034 194.2)",
+          "oklch(35% 0.034 194.2)"
+        ]
+      },
+      "cyan-soft": {
+        "role": "secondary",
+        "displayName": "Soft Cyan",
+        "canonical": "#d8e7e4",
+        "tonalRamp": [
+          "#d8e7e4",
+          "#b6d6d5",
+          "#dde7e7",
+          "oklch(15% 0.016 182.7)",
+          "oklch(25% 0.016 182.7)",
+          "oklch(35% 0.016 182.7)",
+          "oklch(45% 0.016 182.7)",
+          "oklch(55% 0.016 182.7)"
+        ]
+      },
+      "coral-pigment": {
+        "role": "secondary",
+        "displayName": "Coral Pigment",
+        "canonical": "#ad5142",
+        "tonalRamp": [
+          "#ad5142",
+          "#733e4c",
+          "#bb392b",
+          "#a7352c",
+          "#ffd0c9",
+          "#ffd1c8",
+          "oklch(15% 0.124 30.9)",
+          "oklch(25% 0.124 30.9)"
+        ]
+      },
+      "gold-pigment": {
+        "role": "tertiary",
+        "displayName": "Gold Pigment",
+        "canonical": "#e4cc79",
+        "tonalRamp": [
+          "#e4cc79",
+          "#d9c26f",
+          "#ead78e",
+          "oklch(15% 0.107 93.8)",
+          "oklch(25% 0.107 93.8)",
+          "oklch(35% 0.107 93.8)",
+          "oklch(45% 0.107 93.8)",
+          "oklch(55% 0.107 93.8)"
+        ]
+      },
+      "pale-mist": {
+        "role": "neutral",
+        "displayName": "Pale Mist",
+        "canonical": "#dde7e7",
+        "tonalRamp": [
+          "#dde7e7",
+          "#cfdfE1",
+          "#cedce0",
+          "#aabdc7",
+          "oklch(15% 0.011 197.0)",
+          "oklch(25% 0.011 197.0)",
+          "oklch(35% 0.011 197.0)",
+          "oklch(45% 0.011 197.0)"
+        ]
+      },
+      "muted-ink": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "#38586a",
+        "tonalRamp": [
+          "#38586a",
+          "#3d5b68",
+          "oklch(15% 0.048 234.0)",
+          "oklch(25% 0.048 234.0)",
+          "oklch(35% 0.048 234.0)",
+          "oklch(45% 0.048 234.0)",
+          "oklch(55% 0.048 234.0)",
+          "oklch(65% 0.048 234.0)"
+        ]
+      },
+      "rule-blue": {
+        "role": "neutral",
+        "displayName": "Rule Blue",
+        "canonical": "#8faab2",
+        "tonalRamp": [
+          "#8faab2",
+          "#aabdc7",
+          "#d4dcd8",
+          "oklch(15% 0.032 217.6)",
+          "oklch(25% 0.032 217.6)",
+          "oklch(35% 0.032 217.6)",
+          "oklch(45% 0.032 217.6)",
+          "oklch(55% 0.032 217.6)"
+        ]
+      },
+      "disabled-edge": {
+        "role": "neutral",
+        "displayName": "Disabled Edge",
+        "canonical": "#aabdc7",
+        "tonalRamp": [
+          "#aabdc7",
+          "oklch(15% 0.025 230.5)",
+          "oklch(25% 0.025 230.5)",
+          "oklch(35% 0.025 230.5)",
+          "oklch(45% 0.025 230.5)",
+          "oklch(55% 0.025 230.5)",
+          "oklch(65% 0.025 230.5)",
+          "oklch(75% 0.025 230.5)"
+        ]
+      },
+      "disabled-surface": {
+        "role": "neutral",
+        "displayName": "Disabled Surface",
+        "canonical": "#cedce0",
+        "tonalRamp": [
+          "#cedce0",
+          "oklch(15% 0.016 216.7)",
+          "oklch(25% 0.016 216.7)",
+          "oklch(35% 0.016 216.7)",
+          "oklch(45% 0.016 216.7)",
+          "oklch(55% 0.016 216.7)",
+          "oklch(65% 0.016 216.7)",
+          "oklch(75% 0.016 216.7)"
+        ]
+      },
+      "disabled-ink": {
+        "role": "neutral",
+        "displayName": "Disabled Ink",
+        "canonical": "#3d5b68",
+        "tonalRamp": [
+          "#3d5b68",
+          "oklch(15% 0.041 226.9)",
+          "oklch(25% 0.041 226.9)",
+          "oklch(35% 0.041 226.9)",
+          "oklch(45% 0.041 226.9)",
+          "oklch(55% 0.041 226.9)",
+          "oklch(65% 0.041 226.9)",
+          "oklch(75% 0.041 226.9)"
+        ]
+      },
+      "button-ivory": {
+        "role": "neutral",
+        "displayName": "Action Ivory",
+        "canonical": "#fff9f0",
+        "tonalRamp": [
+          "oklch(15% 0.02 84)",
+          "oklch(25% 0.02 84)",
+          "oklch(35% 0.02 84)",
+          "oklch(45% 0.02 84)",
+          "oklch(55% 0.02 84)",
+          "oklch(65% 0.02 84)",
+          "oklch(75% 0.02 84)",
+          "#fff9f0"
+        ]
+      },
+      "dialog-scrim": {
+        "role": "neutral",
+        "displayName": "Dialog Scrim",
+        "canonical": "rgb(3 26 45 / 78%)",
+        "tonalRamp": [
+          "rgb(3 26 45 / 38%)",
+          "rgb(3 26 45 / 44%)",
+          "rgb(3 26 45 / 50%)",
+          "rgb(3 26 45 / 56%)",
+          "rgb(3 26 45 / 62%)",
+          "rgb(3 26 45 / 68%)",
+          "rgb(3 26 45 / 73%)",
+          "rgb(3 26 45 / 78%)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Page Title",
+        "purpose": "Fluid Avenir Next heading for mode selection, comparison, authoring, and the daily puzzle at wide widths."
+      },
+      "mobile-display": {
+        "displayName": "Mobile Page Title",
+        "purpose": "Fluid Avenir Next page heading used below the mobile breakpoint."
+      },
+      "puzzle-display": {
+        "displayName": "Puzzle Title",
+        "purpose": "Fluid Avenir Next heading for the active puzzle; compact screens step down to the 28px scale token."
+      },
+      "loading-display": {
+        "displayName": "Loading Title",
+        "purpose": "Fluid Avenir Next title for the loading screen."
+      },
+      "loading-status": {
+        "displayName": "Loading Status",
+        "purpose": "Fluid Avenir Next supporting title for the loading screen."
+      },
+      "headline": {
+        "displayName": "Section Heading",
+        "purpose": "Avenir Next heading for mode, board, comparison, and authoring sections."
+      },
+      "title": {
+        "displayName": "Component Heading",
+        "purpose": "Compact title for selectable mode cards and small page sections."
+      },
+      "body": {
+        "displayName": "Interface Body",
+        "purpose": "Avenir Next instructions and explanatory copy."
+      },
+      "action": {
+        "displayName": "Primary Action",
+        "purpose": "Bold Avenir Next type for the start action."
+      },
+      "control": {
+        "displayName": "Control Label",
+        "purpose": "Avenir Next type for hint and cancel actions, reduced on mobile."
+      },
+      "label": {
+        "displayName": "Interface Label",
+        "purpose": "Compact Avenir Next badges, budgets, and short labels."
+      },
+      "navigation": {
+        "displayName": "Navigation Link",
+        "purpose": "Avenir Next masthead link type, reduced on mobile."
+      },
+      "stat": {
+        "displayName": "Progress Stat",
+        "purpose": "Avenir Next type for progress and swap counters."
+      },
+      "wordmark": {
+        "displayName": "Brand Wordmark",
+        "purpose": "Lalezar is kept to the masthead wordmark."
+      },
+      "code": {
+        "displayName": "Puzzle JSON",
+        "purpose": "Monospaced text for editing puzzle JSON."
+      }
+    },
+    "shadows": [
+      {
+        "name": "pinned-target",
+        "value": "0 6px 16px rgb(2 27 46 / 18%)",
+        "purpose": "Separates the sticky target reference on mobile."
+      },
+      {
+        "name": "target-dialog",
+        "value": "0 18px 44px rgb(1 22 40 / 32%)",
+        "purpose": "Raises the enlarged target above gameplay."
+      },
+      {
+        "name": "tile-focus-halo",
+        "value": "0 0 0 5px var(--ivory)",
+        "purpose": "Preserves an ivory halo outside the tile focus outline."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-feedback",
+        "value": "150ms ease-out",
+        "purpose": "Provides quiet background, border, or brightness feedback on controls and cards without lifting them."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "Removes transitions and animation when requested."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "tool-row",
+        "value": "1000px"
+      },
+      {
+        "name": "mobile",
+        "value": "760px"
+      },
+      {
+        "name": "compact-header",
+        "value": "480px"
+      },
+      {
+        "name": "small-mobile",
+        "value": "380px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Masthead Navigation",
+      "kind": "nav",
+      "refersTo": "navigation-masthead",
+      "description": "Compact ivory masthead shared by play, comparison, and offline authoring.",
+      "html": "<header class=\"ds-nav\"><a class=\"ds-wordmark\" href=\"#\">TILE-SWAP PUZZLE</a><a class=\"ds-link\" href=\"#\">Compare difficulty art</a></header>",
+      "css": ".ds-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; height:68px; padding:8px max(24px,calc((100% - 1187px)/2)); border-top:4px solid var(--deep-sea); border-bottom:1px solid var(--surface-edge); background:var(--ivory); } .ds-wordmark { color:var(--aegean); font:400 var(--font-size-23)/1 Lalezar,'Avenir Next Condensed',Avenir,sans-serif; letter-spacing:.015em; text-decoration:none; white-space:nowrap; } .ds-link { display:inline-flex; min-height:44px; align-items:center; color:var(--aegean); font:650 var(--font-size-15)/1.2 'Avenir Next',Avenir,sans-serif; text-underline-offset:4px; } .ds-link:hover { text-decoration-color:currentColor; } .ds-link:focus-visible { outline:3px solid var(--gold); outline-offset:3px; } @media(max-width:760px) { .ds-nav { height:62px; padding-inline:16px; } .ds-wordmark { font-size:var(--font-size-17); } .ds-link { font-size:var(--font-size-12); } }"
+    },
+    {
+      "name": "Start Puzzle Button",
+      "kind": "button",
+      "refersTo": "button-start",
+      "description": "Flat gold action for beginning a selected puzzle mode.",
+      "html": "<button class=\"ds-start\" type=\"button\">Start puzzle</button>",
+      "css": ".ds-start { min-width:190px; min-height:50px; padding:11px 22px; border:1px solid var(--gold-edge); border-radius:var(--radius-panel); background:var(--gold); color:var(--aegean); box-shadow:none; cursor:pointer; font:700 var(--font-size-16)/1.2 'Avenir Next',Avenir,sans-serif; transition:background-color 150ms ease-out; } .ds-start:hover { background:var(--gold-hover); } .ds-start:focus-visible { outline:3px solid var(--gold); outline-offset:3px; }"
+    },
+    {
+      "name": "Hint Button",
+      "kind": "button",
+      "refersTo": "button-hint",
+      "description": "Gold optional action; compact on mobile and disabled after the hint is used.",
+      "html": "<button class=\"ds-hint\" type=\"button\">Use hint</button>",
+      "css": ".ds-hint { min-height:76px; padding:11px 12px; border:1px solid var(--gold-edge); border-radius:var(--radius-panel); background:var(--gold); color:var(--aegean); cursor:pointer; font:650 var(--font-size-14)/1.2 'Avenir Next',Avenir,sans-serif; transition:filter 150ms ease-out; } .ds-hint:hover:not(:disabled) { filter:brightness(1.04); } .ds-hint:disabled { border-color:var(--disabled-edge); background:var(--disabled-surface); color:var(--disabled-ink); cursor:default; } .ds-hint:focus-visible { outline:3px solid var(--gold); outline-offset:3px; } @media(max-width:760px) { .ds-hint { min-height:54px; font-size:var(--font-size-13); } }"
+    },
+    {
+      "name": "Cancel Selection Button",
+      "kind": "button",
+      "refersTo": "button-clear",
+      "description": "Coral action for cancelling the current tile selection.",
+      "html": "<button class=\"ds-clear\" type=\"button\">Cancel selection</button>",
+      "css": ".ds-clear { min-height:76px; padding:11px 12px; border:1px solid var(--coral); border-radius:var(--radius-panel); background:var(--coral); color:var(--button-ivory); cursor:pointer; font:650 var(--font-size-14)/1.2 'Avenir Next',Avenir,sans-serif; transition:filter 150ms ease-out; } .ds-clear:hover:not(:disabled) { filter:brightness(1.04); } .ds-clear:disabled { border-color:var(--disabled-edge); background:var(--disabled-surface); color:var(--disabled-ink); cursor:default; } .ds-clear:focus-visible { outline:3px solid var(--gold); outline-offset:3px; } @media(max-width:760px) { .ds-clear { min-height:54px; font-size:var(--font-size-13); } }"
+    },
+    {
+      "name": "Mode Option Card",
+      "kind": "card",
+      "refersTo": "card-mode",
+      "description": "Selectable mode panel with title, swap budget, and a distinct selected state.",
+      "html": "<label class=\"ds-mode\"><input type=\"radio\" name=\"mode\" checked><span><strong>Medium</strong><small>Compare motifs and turns</small></span></label>",
+      "css": ".ds-mode { display:grid; grid-template-columns:20px minmax(0,1fr); align-items:start; gap:12px; min-height:136px; padding:16px; border:1px solid var(--mode-edge); border-radius:var(--radius-panel); background:var(--deep-sea); color:var(--ivory); cursor:pointer; transition:border-color 150ms ease-out,background-color 150ms ease-out; } .ds-mode:hover { border-color:var(--cyan); } .ds-mode:focus-within { outline:3px solid var(--gold); outline-offset:3px; } .ds-mode input { width:20px; height:20px; margin:2px 0 0; accent-color:var(--gold); } .ds-mode span { display:grid; gap:8px; } .ds-mode strong { color:var(--ivory); font:700 var(--font-size-20)/1.2 'Avenir Next',Avenir,sans-serif; } .ds-mode small { color:var(--mist); font:400 var(--font-size-14)/1.5 'Avenir Next',Avenir,sans-serif; } .ds-mode:has(input:checked) { padding:15px; border:2px solid var(--cyan); background:var(--mode-selected); } @media(max-width:760px) { .ds-mode { min-height:0; padding:14px; } .ds-mode:has(input:checked) { padding:13px; } }"
+    },
+    {
+      "name": "Authoring JSON Field",
+      "kind": "input",
+      "refersTo": "input-authoring",
+      "description": "Monospaced field for editing offline puzzle candidates.",
+      "html": "<textarea class=\"ds-editor\" aria-label=\"Candidate JSON\" spellcheck=\"false\">{\n  \"id\": \"daily-candidate\"\n}</textarea>",
+      "css": ".ds-editor { display:block; width:100%; min-height:260px; padding:14px; border:1px solid var(--rule); border-radius:var(--radius-panel); background:var(--deep-sea); color:var(--ivory); font:var(--font-size-13)/1.55 ui-monospace,SFMono-Regular,Consolas,monospace; tab-size:2; } .ds-editor:focus-visible { outline:3px solid var(--gold); outline-offset:3px; }"
+    },
+    {
+      "name": "Mosaic Frame",
+      "kind": "custom",
+      "refersTo": "mosaic-frame",
+      "description": "Deep-sea surround frames a square six-by-six board.",
+      "html": "<div class=\"ds-frame\"><div class=\"ds-board\" aria-label=\"Mosaic board\"></div></div>",
+      "css": ".ds-frame { width:min(100%,530px); padding:8px; border-radius:var(--radius-panel); background:var(--deep-sea); } .ds-board { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); aspect-ratio:1; gap:3px; padding:5px; border:2px solid var(--board-edge); border-radius:0 0 var(--radius-panel) var(--radius-panel); }"
+    },
+    {
+      "name": "Authored Mosaic Tile Cell",
+      "kind": "custom",
+      "refersTo": "tile-cell",
+      "description": "Square ivory cell carrying the real geometric tile motif; focus and selection remain visible.",
+      "html": "<button class=\"ds-tile\" type=\"button\" aria-label=\"Select tile: Greek key motif\"><svg viewBox=\"0 0 100 100\" aria-hidden=\"true\"><rect width=\"100\" height=\"100\" fill=\"var(--ivory)\"></rect><polyline points=\"20,20 80,20 80,80 40,80 40,45 60,45 60,60\"></polyline></svg></button>",
+      "css": ".ds-tile { display:block; width:64px; aspect-ratio:1; overflow:hidden; padding:0; border:1px solid var(--deep-sea); border-radius:var(--radius-tile); background:var(--ivory); cursor:pointer; touch-action:manipulation; } .ds-tile svg { display:block; width:100%; height:100%; } .ds-tile polyline { fill:none; stroke:var(--aegean); stroke-width:7; stroke-linecap:square; stroke-linejoin:miter; } .ds-tile:hover { box-shadow:0 0 0 2px var(--cyan); } .ds-tile:focus-visible { outline:3px solid var(--gold); outline-offset:2px; box-shadow:0 0 0 5px var(--ivory); } .ds-tile[aria-pressed=true] { outline:3px solid var(--gold); outline-offset:-3px; }"
+    },
+    {
+      "name": "Progress Stat Card",
+      "kind": "custom",
+      "refersTo": "stat-card",
+      "description": "Flat ivory status panel for tiles in place or remaining swaps.",
+      "html": "<div class=\"ds-stat\"><span class=\"ds-glyph\" aria-hidden=\"true\"><i></i><i></i><i></i><i></i></span><strong>16 of 36 tiles in place</strong></div>",
+      "css": ".ds-stat { display:grid; grid-template-columns:46px minmax(0,1fr); align-items:center; gap:8px 11px; min-height:76px; padding:11px 13px; border:1px solid var(--surface-edge-soft); border-radius:var(--radius-panel); background:var(--ivory); color:var(--aegean); } .ds-glyph { display:grid; grid-template-columns:repeat(2,1fr); grid-template-rows:repeat(2,1fr); gap:3px; width:42px; height:42px; } .ds-glyph i { display:block; border-radius:var(--radius-tiny); background:var(--cyan); } .ds-glyph i:nth-child(2) { background:var(--aegean); } .ds-glyph i:nth-child(3) { background:var(--coral); } .ds-glyph i:nth-child(4) { background:var(--gold); } .ds-stat strong { color:var(--aegean); font:650 var(--font-size-15)/1.3 'Avenir Next',Avenir,sans-serif; }"
+    },
+    {
+      "name": "Instruction Band",
+      "kind": "custom",
+      "description": "Three concise swap instructions beneath the toolbar.",
+      "html": "<aside class=\"ds-instructions\" aria-label=\"Playing tips\"><p><b>1</b> Tap a tile to select it.</p><p><b>2</b> Tap a second tile to swap them.</p><p><b>3</b> Keep swapping until your mosaic matches the target.</p></aside>",
+      "css": ".ds-instructions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); align-items:center; gap:20px; width:min(calc(100vw - 128px),1187px); margin:0 auto; padding:17px 0 9px; color:var(--ivory); } .ds-instructions p { display:flex; align-items:center; gap:12px; min-width:0; margin:0; padding:0 8px; font:500 var(--font-size-14)/1.45 'Avenir Next',Avenir,sans-serif; } .ds-instructions b { display:grid; flex:0 0 36px; width:36px; height:36px; place-items:center; border-radius:var(--radius-circle); background:var(--cyan); color:var(--aegean); font:700 var(--font-size-17)/1 'Avenir Next',Avenir,sans-serif; } @media(max-width:760px) { .ds-instructions { width:calc(100% - 32px); grid-template-columns:minmax(0,1fr); gap:10px; padding:15px 0 8px; } .ds-instructions p { padding:0; font-size:var(--font-size-13); } .ds-instructions b { flex-basis:34px; width:34px; height:34px; font-size:var(--font-size-16); } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Aegean Fresco Restoration",
+    "overview": "The visual world treats the authored mosaic as the fresco being restored. Aegean blue gives the paired target and player boards room to read; warm plaster, muted cyan, coral, and gold carry the Mediterranean reference. The game can stay playful while the interface feels precise and composed.\n\nThe authored 6×6 tile motifs are the artwork. The daily game, mode comparison, and offline editor share an open blue field, compact ivory masthead, Avenir Next interface, and flat surfaces. The editor keeps its generation, validation, import, and export workflow, with monospaced JSON controls.",
+    "keyCharacteristics": [
+      "The paired playable mosaics supply the artwork; the blue field gives them room.",
+      "Ivory frames and cyan registers organize boards and headings.",
+      "Coral and gold identify functional actions and game states.",
+      "Avenir Next carries headings and interface text; Lalezar remains in the wordmark."
+    ],
+    "rules": [
+      {
+        "name": "The Open-Field Rule",
+        "body": "Keep the margins around the boards uninterrupted. The masthead stays quiet; decorative side scenes and full-page textures do not belong there.",
+        "section": "overview"
+      },
+      {
+        "name": "The Function-First Pigment Rule",
+        "body": "Cyan, coral, and gold identify a control, board state, focus cue, or boundary. Keep them out of ornamental side artwork.",
+        "section": "colors"
+      },
+      {
+        "name": "The Role-Split Rule",
+        "body": "Use Lalezar only for the wordmark. Keep headings, controls, instructions, explanations, and status messages in Avenir Next; reserve ui-monospace for editable JSON.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Use tonal contrast and borders for everyday grouping. Reserve depth shadows for the sticky target and enlarged-target dialog; use a pale halo only to preserve tile keyboard focus.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep the authored 6×6 mosaics and their geometric linework intact; the target and player board are the main artwork.",
+      "Do keep the margins around the boards as open blue field and the player masthead quiet.",
+      "Do use warm ivory under tile marks and crisp dark gutters between adjacent cells.",
+      "Do reserve cyan, coral, and gold for real headings, controls, focus, and game-state cues.",
+      "Do carry the same palette, type roles, and panel shapes into mode selection, comparison, and offline authoring.",
+      "Do preserve visible keyboard focus, distinct selection and hint marks, and reduced-motion behavior."
+    ],
+    "donts": [
+      "Don't add architecture, plants, waves, florals, or side illustrations beside the boards.",
+      "Don't replace authored motifs with stock iconography or decorative pattern filler.",
+      "Don't soften tile boundaries with thick gaps, rounded cells, or heavy shadows.",
+      "Don't use accent pigment as decoration when it does not identify a control, boundary, focus cue, or state.",
+      "Don't hide keyboard focus or make selection, hint, win, and loss states depend on color alone."
+    ]
+  }
+}

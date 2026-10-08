@@ -90,7 +90,7 @@ test('keeps mode choices readable and selectable at phone widths', async ({ page
 
 test('starts a readable target and playable 36-cell board', async ({ page }) => {
   await startGame(page);
-  await expect(page.getByRole('heading', { name: 'Daily Tile-Swap Puzzle.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Daily Tile-Swap Puzzle' })).toBeVisible();
   await expect(page.getByText('Look at the target, then select two tiles to swap.')).toBeVisible();
   await expect(page.getByText('Medium mode', { exact: true })).toBeVisible();
   await expect(page.getByText('13 swaps left', { exact: true })).toBeVisible();
@@ -166,7 +166,7 @@ test('confirms before replacing a paused round with another difficulty', async (
   await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
   await page.getByRole('button', { name: 'Replace and start', exact: true }).click();
   await expect(board(page)).toBeVisible();
-  await expect(page.locator('.mode-badge')).toHaveText('Easy');
+  await expect(page.locator('.mode-badge')).toHaveText('Easy mode');
   expect(await page.evaluate(() => localStorage.getItem('tile-puzzle-progress:v1'))).toBeNull();
 });
 
@@ -206,7 +206,7 @@ test('reports how many positions match the target through swaps and reloads', as
     await cell(page, rowB, columnB).click();
   }
   await expect(page.getByText('36 of 36 tiles match the target', { exact: true })).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('36 of 36 tiles match the target');
+  await expect(page.getByRole('status')).toContainText('Puzzle solved. All 36 tiles match the target.');
 });
 
 test('selects, cancels, reselects, and swaps whole artwork with pointer or touch', async ({ page, isMobile }) => {
@@ -242,7 +242,7 @@ test('navigates the board with arrow keys and keeps Tab for entering and leaving
   await page.getByRole('link', { name: 'Compare modes' }).focus();
   await page.keyboard.press('Tab');
   if (isMobile) {
-    const targetZoomIsFocused = await page.getByRole('button', { name: 'View target larger' })
+    const targetZoomIsFocused = await page.getByRole('button', { name: 'Enlarge target' })
       .evaluate((button) => button === document.activeElement);
     if (targetZoomIsFocused) await page.keyboard.press('Tab');
   }
@@ -274,8 +274,12 @@ test('navigates the board with arrow keys and keeps Tab for entering and leaving
   expect(after[1]).toBe(before[2]);
   expect(after[2]).toBe(before[1]);
   await expect(cell(page, 1, 3)).toBeFocused();
-  const focusStyle = await cell(page, 1, 3).evaluate((element) => getComputedStyle(element).outlineStyle);
-  expect(focusStyle).toBe('dashed');
+  const focusIndicator = await cell(page, 1, 3).evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { outlineStyle: style.outlineStyle, outlineWidth: Number.parseFloat(style.outlineWidth) };
+  });
+  expect(focusIndicator.outlineStyle).not.toBe('none');
+  expect(focusIndicator.outlineWidth).toBeGreaterThanOrEqual(2);
 
   await page.keyboard.press('ArrowDown');
   await expect(cell(page, 2, 3)).toBeFocused();
@@ -494,10 +498,10 @@ test('fits phone widths with reliable square touch targets and static feedback',
     if (width <= 760) {
       expect(reference!.width).toBeGreaterThanOrEqual(124);
       expect(reference!.width).toBeLessThanOrEqual(148);
-      await expect(page.getByRole('button', { name: 'View target larger' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Enlarge target' })).toBeVisible();
     } else {
       expect(reference!.width).toBeCloseTo(playable!.width, 0);
-      await expect(page.getByRole('button', { name: 'View target larger' })).toBeHidden();
+      await expect(page.getByRole('button', { name: 'Enlarge target' })).toBeHidden();
       const targetSection = await page.locator('.target-section').boundingBox();
       const playerSection = await page.locator('.player-section').boundingBox();
       expect(playerSection!.x).toBeGreaterThan(targetSection!.x);
@@ -513,7 +517,7 @@ test('pins a compact target and restores the mobile puzzle after enlarged view',
   await startGame(page);
   await page.setViewportSize({ width: 375, height: 568 });
 
-  const opener = page.getByRole('button', { name: 'View target larger' });
+  const opener = page.getByRole('button', { name: 'Enlarge target' });
   const targetSection = page.locator('.target-section');
   const dialog = page.getByRole('dialog', { name: 'Enlarged target' });
   const selectedTile = cell(page, 1, 1);
@@ -688,7 +692,7 @@ test('makes all difficulties playable for a new daily puzzle', async ({ page }) 
   }));
   await page.reload();
 
-  await expect(page.getByText('DAILY PUZZLE · 2026-09-30')).toBeVisible();
+  await expect(page.getByRole('contentinfo')).toContainText('2026-09-30');
   await expect(page.getByRole('button', { name: 'Start puzzle', exact: true })).toBeEnabled();
   await expect(page.getByText('Finished', { exact: true })).toHaveCount(0);
 });

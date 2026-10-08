@@ -28,7 +28,7 @@ function PreviewBoard({
 
 export function DifficultyPreviewPage() {
   return (
-    <div className="page-shell">
+    <div className="page-shell preview-shell">
       <header className="site-header preview-site-header">
         <a className="wordmark" href="/">TILE-SWAP PUZZLE</a>
         <a className="preview-back-link" href="/">Back to the puzzle</a>
@@ -64,7 +64,7 @@ export function DifficultyPreviewPage() {
         <p className="preview-footnote">Pattern names are just labels. No special knowledge is needed to solve the puzzle.</p>
       </main>
 
-      <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>MODE PREVIEW <span aria-hidden="true">✦</span></span></footer>
+      <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>Mode preview <span aria-hidden="true">✦</span></span></footer>
     </div>
   );
 }
