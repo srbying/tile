@@ -7,7 +7,7 @@ import { PuzzleBoard, TargetBoard, describePosition } from './puzzle-board';
 import { createPuzzleCompletionRepository, createPuzzleProgressRepository } from './puzzle-progress';
 import type { PuzzleCompletionsByTier, PuzzleProgressRepository } from './puzzle-progress';
 import type { DailyPuzzleRelease, SavedPuzzleCompletionV1, SavedPuzzleProgressV1 } from './puzzle.types';
-import { getNextNewYorkMidnight, getNewYorkPuzzleDate } from './daily-puzzle-generator';
+import { getDailyPuzzleForId, getNextNewYorkMidnight, getNewYorkPuzzleDate } from './daily-puzzle-generator';
 import {
   createDailyPuzzleReleaseCache,
   createDailyPuzzleReleaseLoader,
@@ -701,23 +701,43 @@ export function PuzzleGame() {
     const dailyLoad = await fetchToday(signal);
     if (!dailyLoad) throw new Error('Daily puzzle is unavailable.');
 
-    const savedCompletions = validatePuzzleCompletions(
-      dailyLoad.release,
-      completionRepository.load(dailyLoad.release.puzzleId),
-    );
     const saved = progressRepository.load();
+    const storedCompletions = completionRepository.load();
+    const previousId = saved?.puzzleId ?? Object.values(storedCompletions)[0]?.puzzleId;
+    // A version rollout must not discard today's round. Old dates still expire.
+    const previousRelease = dailyLoad.release.generatorVersion === 3
+      && previousId?.startsWith(`daily-v2-${dailyLoad.release.releaseDate}-`)
+      ? getDailyPuzzleForId(previousId) : null;
+    const activeRelease = previousRelease ?? dailyLoad.release;
+    const savedCompletions = validatePuzzleCompletions(
+      activeRelease,
+      completionRepository.load(activeRelease.puzzleId),
+    );
     if (saved) {
-      if (dailyLoad.release.puzzleId === saved.puzzleId && !savedCompletions[saved.tierId]) {
+      if (activeRelease.puzzleId === saved.puzzleId && !savedCompletions[saved.tierId]) {
         const savedTier = getDifficultyTierConfig(saved.tierId);
-        const savedPuzzle = buildDifficultyPuzzle(dailyLoad.release.puzzle, savedTier.id);
+        const savedPuzzle = buildDifficultyPuzzle(activeRelease.puzzle, savedTier.id);
         const savedEngine = createPuzzleEngine(savedPuzzle, {
           sameAppearance,
-          attemptLimit: dailyLoad.release.puzzle.attemptLimits[savedTier.id],
+          attemptLimit: activeRelease.puzzle.attemptLimits[savedTier.id],
         });
+        const recoveredCompletion: SavedPuzzleCompletionV1 = { ...saved, status: 'won', hintedPositions: null };
+        if (savedEngine.restoreCompletion(recoveredCompletion)) {
+          completionRepository.save(recoveredCompletion);
+          progressRepository.clear();
+          return {
+            release: activeRelease,
+            restoredProgress: null,
+            recoveredCompletion,
+            completions: { ...savedCompletions, [saved.tierId]: recoveredCompletion },
+            source: dailyLoad.source,
+          };
+        }
         if (savedEngine.restore(saved)) {
           return {
-            release: dailyLoad.release,
+            release: activeRelease,
             restoredProgress: saved,
+            recoveredCompletion: null,
             completions: savedCompletions,
             source: dailyLoad.source,
           };
@@ -726,7 +746,7 @@ export function PuzzleGame() {
       progressRepository.clear();
     }
 
-    return { release: dailyLoad.release, restoredProgress: null, completions: savedCompletions, source: dailyLoad.source };
+    return { release: activeRelease, restoredProgress: null, recoveredCompletion: null, completions: savedCompletions, source: dailyLoad.source };
   }, [completionRepository, fetchToday, progressRepository]);
 
   useEffect(() => {
@@ -735,11 +755,12 @@ export function PuzzleGame() {
       setRelease(loaded.release);
       setReleaseSource(loaded.source);
       setRestoredProgress(loaded.restoredProgress);
-      setReviewCompletion(null);
+      setReviewCompletion(loaded.recoveredCompletion);
       setCompletions(loaded.completions);
-      setStarted(Boolean(loaded.restoredProgress));
+      setStarted(Boolean(loaded.restoredProgress || loaded.recoveredCompletion));
       setFocusModeActionOnReturn(false);
       if (loaded.restoredProgress) setSelectedTier(loaded.restoredProgress.tierId);
+      if (loaded.recoveredCompletion) setSelectedTier(loaded.recoveredCompletion.tierId);
       setLoadingError(false);
     }).catch(() => {
       if (!controller.signal.aborted) {

@@ -20,7 +20,7 @@ export interface PuzzleProgressRepository {
 export type PuzzleCompletionsByTier = Partial<Record<DifficultyTierId, SavedPuzzleCompletionV1>>;
 
 export interface PuzzleCompletionRepository {
-  load(puzzleId: string): PuzzleCompletionsByTier;
+  load(puzzleId?: string): PuzzleCompletionsByTier;
   save(completion: SavedPuzzleCompletionV1): void;
 }
 
@@ -133,9 +133,9 @@ export function createPuzzleProgressRepository(storage: PuzzleProgressStorage): 
 export function createPuzzleCompletionRepository(storage: PuzzleProgressStorage): PuzzleCompletionRepository {
   return {
     load(puzzleId) {
-      if (!puzzleId) return {};
+      if (puzzleId === '') return {};
       const stored = readPuzzleCompletions(storage);
-      return stored?.puzzleId === puzzleId ? stored.completions : {};
+      return stored && (puzzleId === undefined || stored.puzzleId === puzzleId) ? stored.completions : {};
     },
     save(completion) {
       try {

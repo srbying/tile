@@ -106,6 +106,7 @@ describe('puzzle completion repository', () => {
     repository.save(hard);
 
     expect(repository.load(samplePuzzle.id)).toEqual({ easy, hard });
+    expect(repository.load()).toEqual({ easy, hard });
     expect(JSON.parse(storage.getItem(puzzleCompletionStorageKey)!)).toEqual({
       version: 1,
       puzzleId: samplePuzzle.id,

@@ -30,7 +30,8 @@ export const motifArtwork: Record<Motif, MotifArtwork> = {
   "lotus": { label: "Lotus", paths: ["M50 76C28 72 18 55 21 37C39 41 49 54 50 76Z", "M50 76C72 72 82 55 79 37C61 41 51 54 50 76Z", "M50 76C34 57 37 31 50 17C63 31 66 57 50 76Z", "M28 80H72M36 87H64"] },
   "mosaic-cross": { label: "Mosaic cross", paths: ["M42 14H58V39H83V55H58V82H42V55H17V39H42Z", "M50 28L61 47L50 66L39 47Z", "M17 14L32 29M83 14L68 29M17 82L32 67M83 82L68 67"] },
   "squiggle-sway": { label: "Sway", paths: ["M22 16C42 21 11 36 31 50C51 64 20 79 40 84", "M50 16C70 21 39 36 59 50C79 64 48 79 68 84", "M78 16C98 21 67 36 87 50C100 60 79 79 88 84"], lineCap: 'round', lineJoin: 'round' },
-  "squiggle-loops": { label: "Looping ribbons", paths: ["M16 43C16 21 39 21 39 43C39 65 62 65 62 43C62 21 85 21 85 43", "M16 58C16 80 39 80 39 58C39 36 62 36 62 58C62 80 85 80 85 58"], lineCap: 'round', lineJoin: 'round' },
+  // Center the symmetric ribbons on (50, 50), so half-turns/reflections render and compare identically.
+  "squiggle-loops": { label: "Looping ribbons", paths: ["M15.5 42.5C15.5 20.5 38.5 20.5 38.5 42.5C38.5 64.5 61.5 64.5 61.5 42.5C61.5 20.5 84.5 20.5 84.5 42.5", "M15.5 57.5C15.5 79.5 38.5 79.5 38.5 57.5C38.5 35.5 61.5 35.5 61.5 57.5C61.5 79.5 84.5 79.5 84.5 57.5"], lineCap: 'round', lineJoin: 'round' },
   "squiggle-coil": { label: "Winding coil", paths: ["M17 55C10 29 34 12 58 21C83 30 88 59 69 75C50 91 25 78 30 56C34 39 52 34 62 45C72 57 63 68 52 65C44 63 43 56 49 52"], lineCap: 'round', lineJoin: 'round' },
   "waveform-sine": { label: "Sine dip", paths: ["M12 50C27 50 26 78 42 78C58 78 57 22 72 22C86 22 84 50 94 50"], lineCap: 'round', lineJoin: 'round' },
   "waveform-crest": { label: "Stepped crest", paths: ["M12 75C23 75 24 57 34 50C42 44 51 50 60 46C69 42 70 19 82 18C92 17 91 46 96 52"], lineCap: 'round', lineJoin: 'round' },

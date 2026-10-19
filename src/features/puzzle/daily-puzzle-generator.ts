@@ -5,10 +5,10 @@ import { canonicalBoardTargetKey, hasRecentVisualDuplicate } from './puzzle-symm
 import { sameAppearance } from './tile-appearance.js';
 import { createDailyPuzzleTarget, dailyPuzzleTargetCycleLength, getDailyPuzzleArt } from './daily-puzzle-art.js';
 import type { DailyPuzzleArt } from './daily-puzzle-art.js';
-import type { DailyPuzzleRelease, DifficultyTierId, PuzzleCandidate, TileAppearance } from './puzzle.types.js';
+import type { DailyPuzzleRelease, DifficultyTierId, PuzzleCandidate, SameAppearance, TileAppearance } from './puzzle.types.js';
 
 export { dailyPuzzleTargetCycleLength, getDailyPuzzleArt };
-export const dailyPuzzleGeneratorVersion = 2;
+export const dailyPuzzleGeneratorVersion = 3;
 const legacyGeneratorVersion = 1;
 const legacyTargetCycleLength = 67;
 const targetCycleLength = dailyPuzzleTargetCycleLength;
@@ -112,14 +112,18 @@ function projectAllTiers(target: readonly TileAppearance[], start: readonly Tile
   }));
 }
 
-function makeScramblePlan(target: readonly TileAppearance[], random: () => number): readonly SwapPair[] | null {
+function makeScramblePlan(
+  target: readonly TileAppearance[],
+  random: () => number,
+  compare: SameAppearance = sameAppearance,
+): readonly SwapPair[] | null {
   const positions = shuffled(Array.from({ length: 36 }, (_, index) => index), random);
   const plan: SwapPair[] = [];
   for (let index = 0; index < swapsPerPuzzle * 2; index += 2) {
     const left = positions[index]!;
     const right = positions[index + 1]!;
     const usableInEveryTier = projectAllTiers(target, target).every(({ puzzle }) =>
-      !sameAppearance(puzzle.target[left]!, puzzle.target[right]!));
+      !compare(puzzle.target[left]!, puzzle.target[right]!));
     if (!usableInEveryTier) return null;
     plan.push([left, right]);
   }
@@ -154,7 +158,14 @@ function getLegacyTargetCycle(): readonly TargetPattern[] {
   return legacyTargetCycle ??= createLegacyTargetCycle();
 }
 
-function createDailyTargetCycle(): readonly TargetPattern[] {
+// Rebuild v2 scrambles exactly as published. Its off-center ribbons had eight
+// distinct transforms; this historical rule must never govern gameplay or hints.
+const sameV2ScrambleAppearance: SameAppearance = (left, right) =>
+  sameAppearance(left, right) && (left.motif !== 'squiggle-loops'
+    || right.motif !== 'squiggle-loops'
+    || (left.orientation === right.orientation && left.mirrored === right.mirrored));
+
+function createDailyTargetCycle(version: number): readonly TargetPattern[] {
   const patterns: TargetPattern[] = [];
   const seen = new Set<string>();
   for (let index = 0; index < targetCycleLength; index++) {
@@ -164,7 +175,8 @@ function createDailyTargetCycle(): readonly TargetPattern[] {
     if (seen.has(key)) throw new Error(`Daily board composition ${index} duplicates a prior target.`);
     const scramblePlans: SwapPair[][] = [];
     for (let planIndex = 0; planIndex < 512 && scramblePlans.length < scramblePlansPerTarget; planIndex++) {
-      const plan = makeScramblePlan(target, randomFor(`daily-v${dailyPuzzleGeneratorVersion}:plan:${index}:${planIndex}`));
+      const plan = makeScramblePlan(target, randomFor(`daily-v${version}:plan:${index}:${planIndex}`),
+        version === 2 ? sameV2ScrambleAppearance : sameAppearance);
       if (plan) scramblePlans.push([...plan]);
     }
     if (scramblePlans.length < scramblePlansPerTarget) {
@@ -176,9 +188,14 @@ function createDailyTargetCycle(): readonly TargetPattern[] {
   return patterns;
 }
 
-let dailyTargetCycle: readonly TargetPattern[] | undefined;
-function getDailyTargetCycle(): readonly TargetPattern[] {
-  return dailyTargetCycle ??= createDailyTargetCycle();
+const dailyTargetCycles = new Map<number, readonly TargetPattern[]>();
+function getDailyTargetCycle(version = dailyPuzzleGeneratorVersion): readonly TargetPattern[] {
+  let cycle = dailyTargetCycles.get(version);
+  if (!cycle) {
+    cycle = createDailyTargetCycle(version);
+    dailyTargetCycles.set(version, cycle);
+  }
+  return cycle;
 }
 
 function dateCyclePosition(date: string, length = targetCycleLength): number {
@@ -230,9 +247,14 @@ function legacyCandidateForVariation(date: string, variation: number, preferredS
   return scramble >= 0 && scramble < plans.length ? createLegacyCandidate(date, variation, scramble) : null;
 }
 
-function createDailyCandidate(date: string, variation: number, scramble: number): PuzzleCandidate | null {
+function createDailyCandidate(
+  date: string,
+  variation: number,
+  scramble: number,
+  version = dailyPuzzleGeneratorVersion,
+): PuzzleCandidate | null {
   const cycleIndex = ((dateCyclePosition(date) + variation) % targetCycleLength + targetCycleLength) % targetCycleLength;
-  const pattern = getDailyTargetCycle()[cycleIndex]!;
+  const pattern = getDailyTargetCycle(version)[cycleIndex]!;
   const target = [...pattern.target];
   const start = [...target];
   const planIndex = scramble % pattern.scramblePlans.length;
@@ -240,7 +262,7 @@ function createDailyCandidate(date: string, variation: number, scramble: number)
 
   for (const [left, right] of pairs) [start[left], start[right]] = [start[right]!, start[left]!];
 
-  const id = `daily-v${dailyPuzzleGeneratorVersion}-${date}-${variation}-${planIndex}`;
+  const id = `daily-v${version}-${date}-${variation}-${planIndex}`;
   const candidate: PuzzleCandidate = {
     schemaVersion: 1,
     id,
@@ -251,8 +273,8 @@ function createDailyCandidate(date: string, variation: number, scramble: number)
     start,
     attemptLimits: { easy: 15, medium: 13, hard: 10 },
   };
-  const validation = validatePuzzleCandidate(candidate);
-  if (!validation.valid || validation.tiers.some(({ minimumSwaps }) => minimumSwaps !== swapsPerPuzzle)) return null;
+  const validation = validatePuzzleCandidate(candidate, { allowShorterSolution: version === 2 });
+  if (!validation.valid) return null;
   const hints = Object.fromEntries(validation.tiers.map(({ tierId, hint }) => [tierId, hint])) as PuzzleCandidate['hints'];
   if (Object.values(hints ?? {}).some((hint) => hint === null || hint === undefined)) return null;
   return { ...candidate, hints };
@@ -315,10 +337,11 @@ export function dailyPuzzleFromId(puzzleId: string): DailyPuzzleRelease | null {
     if (!puzzle || puzzle.id !== puzzleId) return null;
     return { puzzleId, releaseDate: releaseDate!, generatorVersion: legacyGeneratorVersion, puzzle };
   }
-  if (version !== dailyPuzzleGeneratorVersion || variation >= targetVariations || scramble >= scramblePlansPerTarget) return null;
-  const puzzle = createDailyCandidate(releaseDate!, variation, scramble);
+  if ((version !== 2 && version !== dailyPuzzleGeneratorVersion)
+    || variation >= targetVariations || scramble >= scramblePlansPerTarget) return null;
+  const puzzle = createDailyCandidate(releaseDate!, variation, scramble, version);
   if (!puzzle || puzzle.id !== puzzleId) return null;
-  return { puzzleId, releaseDate: releaseDate!, generatorVersion: dailyPuzzleGeneratorVersion, puzzle };
+  return { puzzleId, releaseDate: releaseDate!, generatorVersion: version, puzzle };
 }
 
 export function getRecentPuzzleTargets(date: string, count = 30): readonly (readonly TileAppearance[])[] {

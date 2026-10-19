@@ -20,11 +20,20 @@ function memoryCache(initial: unknown = null) {
 }
 
 describe('daily puzzle release cache', () => {
-  it('keeps v1 releases readable while accepting expanded v2 releases', () => {
-    const legacy = dailyPuzzleFromId('daily-v1-2026-09-29-0-0');
-
-    expect(parseDailyPuzzleRelease(legacy)).toEqual(legacy);
+  it('keeps v1 and v2 releases readable while accepting v3 releases', () => {
+    for (const version of [1, 2]) {
+      const legacy = dailyPuzzleFromId(`daily-v${version}-2026-09-29-0-0`);
+      expect(legacy).not.toBeNull();
+      expect(parseDailyPuzzleRelease(legacy)).toEqual(legacy);
+    }
     expect(parseDailyPuzzleRelease(today)).toEqual(today);
+  });
+
+  it('refreshes old ribbon hints and accepts a shorter visible solution in cached v2 releases', () => {
+    const legacy = dailyPuzzleFromId('daily-v2-2026-10-19-16-0')!;
+    // A cached hint may refer to the now-equivalent ribbons. Recompute it from the board.
+    const cached = { ...legacy, puzzle: { ...legacy.puzzle, hints: { easy: [1, 10], medium: [1, 10], hard: [1, 4] } } };
+    expect(parseDailyPuzzleRelease(cached)).toEqual(legacy);
   });
 
   it('validates and caches the latest successful current-release response', async () => {
@@ -69,7 +78,7 @@ describe('daily puzzle release cache', () => {
     });
     await expect(malformedLive(new AbortController().signal)).rejects.toThrow('Invalid daily puzzle release.');
 
-    const malformedCache = memoryCache({ ...today, generatorVersion: 3 });
+    const malformedCache = memoryCache({ ...today, generatorVersion: 4 });
     const offline = createDailyPuzzleReleaseLoader({
       fetcher: vi.fn(async () => { throw new TypeError('offline'); }),
       cache: malformedCache,

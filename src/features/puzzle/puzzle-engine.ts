@@ -67,7 +67,7 @@ export function createPuzzleEngine(puzzle: PuzzleDefinition, { sameAppearance, a
       attemptsUsed: saved.attemptsUsed,
       attemptLimit,
       hintUsed: saved.hintUsed,
-      hintedPositions: saved.hintedPositions,
+      hintedPositions: saved.hintedPositions === null ? null : findProductiveHint(board, puzzle.target, sameAppearance),
     };
   }
 

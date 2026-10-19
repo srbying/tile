@@ -12,7 +12,7 @@ test('serves a stable generated daily puzzle and starts gameplay with it', async
     generatorVersion: number;
     puzzle: { id: string; target: unknown[]; start: unknown[]; attemptLimits: Record<string, number> };
   };
-  expect(release.generatorVersion).toBe(2);
+  expect(release.generatorVersion).toBe(3);
   expect(release.puzzleId).toBe(release.puzzle.id);
   expect(release.puzzle.target).toHaveLength(36);
   expect(release.puzzle.start).toHaveLength(36);
@@ -38,7 +38,7 @@ test('serves a stable generated daily puzzle and starts gameplay with it', async
   await expect(page.getByRole('group', { name: 'Your tiles' }).getByRole('button')).toHaveCount(36);
 });
 
-test('replays v1 puzzle IDs after the v2 generator rollout', async ({ page }) => {
+test('replays v1 puzzle IDs after the v3 generator rollout', async ({ page }) => {
   const response = await page.request.get('/api/puzzles/daily-v1-2026-09-29-0-0');
 
   expect(response.status()).toBe(200);
@@ -67,7 +67,7 @@ test.describe('release date rollover', () => {
     [key: string]: unknown;
   };
   const withDate = (date: string) => {
-    const puzzleId = `daily-v2-${date}-0-0`;
+    const puzzleId = `daily-v${baseRelease.generatorVersion}-${date}-0-0`;
     return {
       ...baseRelease,
       puzzleId,
@@ -116,7 +116,7 @@ test('retries a stale cached release when the page resumes after midnight', asyn
     [key: string]: unknown;
   };
   const withDate = (date: string) => {
-    const puzzleId = `daily-v2-${date}-0-0`;
+    const puzzleId = `daily-v${baseRelease.generatorVersion}-${date}-0-0`;
     return {
       ...baseRelease,
       puzzleId,

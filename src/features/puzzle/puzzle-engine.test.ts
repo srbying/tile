@@ -138,6 +138,26 @@ describe('player transitions', () => {
     expect(restored?.hintUsed).toBe(true);
   });
 
+  it('replaces a saved hint for equivalent ribbons with a productive visible swap', () => {
+    const ribbon: TileAppearance = { ...plain, motif: 'squiggle-loops', orientation: 90 };
+    const otherRibbon: TileAppearance = { ...ribbon, orientation: 270 };
+    const ribbonTarget = [...target];
+    ribbonTarget[15] = ribbon;
+    ribbonTarget[26] = otherRibbon;
+    const ribbonStart = [...start];
+    ribbonStart[15] = otherRibbon;
+    ribbonStart[26] = ribbon;
+    const ribbonEngine = createPuzzleEngine({ ...puzzle, start: ribbonStart, target: ribbonTarget }, { sameAppearance, attemptLimit: 15 });
+
+    const restored = ribbonEngine.restore({ board: ribbonStart, attemptsUsed: 2, hintUsed: true, hintedPositions: [15, 26] });
+    expect(restored?.hintedPositions).toEqual([0, 35]);
+    expect(restored?.attemptsUsed).toBe(2);
+    expect(restored?.hintUsed).toBe(true);
+    const won = ribbonEngine.reduce(ribbonEngine.reduce(restored!, { type: 'activate', position: 0 }), { type: 'activate', position: 35 });
+    expect(won.status).toBe('won');
+    expect(won.attemptsUsed).toBe(3);
+  });
+
   it('rejects malformed and terminal saved game state', () => {
     expect(engine.restore({ board: [], attemptsUsed: 1, hintUsed: false, hintedPositions: null })).toBeNull();
     expect(engine.restore({

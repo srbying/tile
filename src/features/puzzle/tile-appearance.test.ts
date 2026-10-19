@@ -45,6 +45,16 @@ describe('visible tile equivalence', () => {
     expect(sameAppearance(chevron, { ...chevron, orientation: 180 })).toBe(false);
   });
 
+  it.each<QuarterTurn>([0, 90, 180, 270])('accepts looping-ribbon half-turns and reflections at %s degrees', (orientation) => {
+    const loops: TileAppearance = { ...tile, motif: 'squiggle-loops', orientation };
+    const halfTurn = ((orientation + 180) % 360) as QuarterTurn;
+    for (const mirrored of [false, true]) {
+      expect(sameAppearance(loops, { ...loops, orientation: halfTurn, mirrored })).toBe(true);
+      expect(sameAppearance(loops, { ...loops, mirrored })).toBe(true);
+    }
+    expect(sameAppearance(loops, { ...loops, orientation: ((orientation + 90) % 360) as QuarterTurn })).toBe(false);
+  });
+
   it('transforms points clockwise around the tile center and inverts actual colors', () => {
     const result = visibleAppearance({ ...tile, motif: 'chevron', orientation: 90, inverted: true });
     expect(result.strokes).toEqual(['50,22 26,50 50,78', '76,22 52,50 76,78']);

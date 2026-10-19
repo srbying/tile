@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
 import {
   dailyPuzzleFromId,
   dailyPuzzleGeneratorVersion,
@@ -18,11 +19,25 @@ describe('daily puzzle generator', () => {
     const current = generateDailyPuzzle('2026-09-29');
     const legacy = dailyPuzzleFromId('daily-v1-2026-09-29-0-0');
 
-    expect(dailyPuzzleGeneratorVersion).toBe(2);
-    expect(current.generatorVersion).toBe(2);
-    expect(current.puzzleId).toMatch(/^daily-v2-/);
+    expect(dailyPuzzleGeneratorVersion).toBe(3);
+    expect(current.generatorVersion).toBe(3);
+    expect(current.puzzleId).toMatch(/^daily-v3-/);
     expect(legacy?.generatorVersion).toBe(1);
     expect(legacy?.puzzleId).toBe('daily-v1-2026-09-29-0-0');
+  }, 30000);
+
+  it('preserves every v2 target and scramble after correcting ribbon symmetry', () => {
+    const boards = [];
+    for (let variation = 0; variation < 45; variation++) {
+      for (let scramble = 0; scramble < 4; scramble++) {
+        const release = dailyPuzzleFromId(`daily-v2-2026-10-19-${variation}-${scramble}`);
+        expect(release).not.toBeNull();
+        boards.push({ puzzleId: release!.puzzleId, target: release!.puzzle.target, start: release!.puzzle.start });
+      }
+    }
+    // Recorded from main before the artwork fix, across the entire 45-board/four-scramble cycle.
+    expect(createHash('sha256').update(JSON.stringify(boards)).digest('hex'))
+      .toBe('dc25857a95e4195d4affca7778a60772eb1d874a1e667a1563d1f52e6fcaf388');
   }, 30000);
 
   it('rotates through motif sets without repeats for six intervening days and board types without consecutive repeats', () => {
@@ -78,7 +93,7 @@ describe('daily puzzle generator', () => {
 
     expect(first).toEqual(second);
     expect(first.releaseDate).toBe('2026-09-29');
-    expect(first.puzzleId).toMatch(/^daily-v2-2026-09-29-/);
+    expect(first.puzzleId).toMatch(/^daily-v3-2026-09-29-/);
     const result = validatePuzzleCandidate(first.puzzle);
     expect(result.valid).toBe(true);
     expect(result.tiers.map(({ minimumSwaps, attemptLimit }) => [minimumSwaps, attemptLimit]))
@@ -121,7 +136,7 @@ describe('daily puzzle generator', () => {
   it('regenerates a saved puzzle from its versioned ID', () => {
     const release = generateDailyPuzzle('2026-09-29');
     expect(dailyPuzzleFromId(release.puzzleId)).toEqual(release);
-    expect(dailyPuzzleFromId('daily-v3-2026-09-29-0-0')).toBeNull();
+    expect(dailyPuzzleFromId('daily-v4-2026-09-29-0-0')).toBeNull();
   });
 
   it('generates alternate authoring candidates from a deterministic target variation', () => {

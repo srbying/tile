@@ -1,5 +1,5 @@
 import { parsePuzzleCandidate, validatePuzzleCandidate } from './puzzle-candidate.js';
-import type { DailyPuzzleRelease } from './puzzle.types.js';
+import type { DailyPuzzleRelease, PuzzleCandidate } from './puzzle.types.js';
 
 export interface DailyPuzzleReleaseCache {
   read(): Promise<unknown | null>;
@@ -63,14 +63,20 @@ export function parseDailyPuzzleRelease(value: unknown): DailyPuzzleRelease | nu
   const release = value as Record<string, unknown>;
   const puzzle = parsePuzzleCandidate(release.puzzle);
   if (!puzzle || release.puzzleId !== puzzle.id || typeof release.releaseDate !== 'string'
-    || (release.generatorVersion !== 1 && release.generatorVersion !== 2)
-    || !release.puzzleId.startsWith(`daily-v${release.generatorVersion}-`)
-    || !validatePuzzleCandidate(puzzle).valid) return null;
+    || (release.generatorVersion !== 1 && release.generatorVersion !== 2 && release.generatorVersion !== 3)
+    || !release.puzzleId.startsWith(`daily-v${release.generatorVersion}-`)) return null;
+  // v2 may contain an invisible ribbon swap or a hint for one. Keep its board,
+  // but validate the corrected visible solution and refresh its hints.
+  const isV2 = release.generatorVersion === 2;
+  const candidate = isV2 ? { ...puzzle, hints: undefined } : puzzle;
+  const validation = validatePuzzleCandidate(candidate, { allowShorterSolution: isV2 });
+  if (!validation.valid) return null;
+  const hints = Object.fromEntries(validation.tiers.map(({ tierId, hint }) => [tierId, hint])) as PuzzleCandidate['hints'];
   return {
     puzzleId: release.puzzleId,
     releaseDate: release.releaseDate,
     generatorVersion: release.generatorVersion,
-    puzzle,
+    puzzle: isV2 ? { ...puzzle, hints } : puzzle,
   };
 }
 

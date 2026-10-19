@@ -41,6 +41,8 @@ export interface PuzzleValidationResult {
 export interface PuzzleValidationOptions {
   readonly recentPuzzles?: readonly PuzzleCandidate[];
   readonly recentTargets?: readonly (readonly TileAppearance[])[];
+  /** Old releases can need fewer moves after an artwork symmetry correction. */
+  readonly allowShorterSolution?: boolean;
 }
 
 const turns = new Set([0, 90, 180, 270]);
@@ -178,7 +180,7 @@ export function validatePuzzleCandidate(value: unknown, options: PuzzleValidatio
     } else if (minimumSwaps === 0) {
       issues.push({ code: 'already-solved', message: `The ${config.label.toLowerCase()} starting board already matches the target. Scramble it first.`, tierId: config.id });
       hint = null;
-    } else if (minimumSwaps !== 10) {
+    } else if (minimumSwaps !== 10 && !(options.allowShorterSolution && minimumSwaps < 10)) {
       issues.push({ code: 'incorrect-shortest-solution', message: `The shortest solution in ${config.label.toLowerCase()} mode must be exactly 10 swaps.`, tierId: config.id });
     }
     if (!Number.isInteger(attemptLimit) || attemptLimit !== config.attemptLimit
