@@ -57,7 +57,7 @@ These boundaries apply SOLID through composition: focused modules, extensible mo
 
 ## Deploy
 
-Connect the repository to Vercel with the root as the project root. Vercel builds the Vite app from `dist`, serves the TypeScript functions in `api/`, and rewrites client routes to `index.html`. Git integration provides PR previews and production deploys from `main`. Daily content is generated per request, with no scheduled job or daily build.
+Connect the repository to Vercel with the root as the project root. Vercel builds the Vite app from `dist`, serves the TypeScript functions in `api/`, and rewrites client routes to `index.html`. Git integration provides PR previews and production deploys from `main`. Daily content is generated and validated on CDN misses. The current release is shared through the CDN until the next New York midnight, with no scheduled job or daily build. See [daily release cache verification](docs/daily-release-caching.md) for headers, rollover checks, and deployment smoke tests.
 
 Issue #7’s proposed human-approval gate was intentionally dropped. The daily API does not check an approval status.
 
