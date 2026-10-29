@@ -4,6 +4,82 @@ import { generateDailyPuzzle, getDailyPuzzleForNow } from './daily-puzzle-genera
 import { validatePuzzleCandidate } from './puzzle-candidate';
 
 describe('daily puzzle API', () => {
+  it('bounds encoded IDs while allowing a fully encoded longest supported ID', () => {
+    const id = 'daily-v3-2026-09-29-44-3';
+    const encoded = Array.from(id, character => `%${character.charCodeAt(0).toString(16)}`).join('');
+    expect(encoded).toHaveLength(72);
+    expect(decodePuzzleId(encoded)).toBe(id);
+    expect(decodePuzzleId('a'.repeat(73))).toBe('');
+    expect(decodePuzzleId('a'.repeat(10000))).toBe('');
+  });
+
+  it.each(['?cacheBust=1', '?next=https://attacker.example', '?'])('redirects today%s before generation', async (query) => {
+    const getToday = vi.fn(() => { throw new Error('Must not generate a redirect.'); });
+    const api = createDailyPuzzleApi({ getToday });
+    const request = new Request(`https://tile.example/api/puzzles/today${query}`);
+    const response = await api.today(request);
+
+    expect(response.status).toBe(308);
+    expect(response.headers.get('location')).toBe('/api/puzzles/today');
+    expect(new URL(response.headers.get('location')!, request.url).origin).toBe('https://tile.example');
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(response.headers.get('cdn-cache-control')).toBe('no-store');
+    expect(getToday).not.toHaveBeenCalled();
+  });
+
+  it.each([1, 2, 3])('redirects supported v%s URL aliases before generation', async (version) => {
+    const id = `daily-v${version}-2026-09-29-44-3`;
+    const encoded = Array.from(id, character => `%${character.charCodeAt(0).toString(16)}`).join('');
+    const getById = vi.fn(() => { throw new Error('Must not generate a redirect.'); });
+    const api = createDailyPuzzleApi({ now: () => new Date('2026-09-29T12:00:00Z'), getById });
+    for (const alias of [`${id}?cacheBust=1`, encoded, `${encoded}?next=//attacker.example`, `${id}?`]) {
+      const request = new Request(`https://tile.example/api/puzzles/${alias}`);
+      const response = await api.byId(request, decodePuzzleId(new URL(request.url).pathname.split('/').at(-1)!));
+
+      expect(response.status).toBe(308);
+      expect(response.headers.get('location')).toBe(`/api/puzzles/${id}`);
+      expect(new URL(response.headers.get('location')!, request.url).origin).toBe('https://tile.example');
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(response.headers.get('cdn-cache-control')).toBe('no-store');
+    }
+    expect(getById).not.toHaveBeenCalled();
+  });
+
+  it.each(['nope', 'daily-v4-2026-09-29-0-0', 'daily-v3-2026-02-29-0-0', 'daily-v3-2026-09-30-0-0', '%E0%A4%A'])
+    ('rejects invalid or future alias %s rather than redirecting', async (encodedId) => {
+      const getById = vi.fn(() => { throw new Error('Must not generate an invalid ID.'); });
+      const api = createDailyPuzzleApi({ now: () => new Date('2026-09-29T12:00:00Z'), getById });
+      const response = await api.byId(new Request(`https://tile.example/api/puzzles/${encodedId}?cacheBust=1`), decodePuzzleId(encodedId));
+
+      expect(response.status).toBe(404);
+      expect(response.headers.get('location')).toBeNull();
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(response.headers.get('cdn-cache-control')).toBe('no-store');
+      expect(getById).not.toHaveBeenCalled();
+    });
+
+  it('rejects unsupported methods before redirecting aliases or generating', async () => {
+    const getToday = vi.fn(() => { throw new Error('Must not generate for an unsupported method.'); });
+    const getById = vi.fn(() => { throw new Error('Must not generate for an unsupported method.'); });
+    const api = createDailyPuzzleApi({ getToday, getById });
+    const id = 'daily-v3-2026-09-29-0-0';
+    for (const method of ['POST', 'PUT', 'DELETE', 'HEAD']) {
+      const responses = [
+        await api.today(new Request('https://tile.example/api/puzzles/today?cacheBust=1', { method })),
+        await api.byId(new Request(`https://tile.example/api/puzzles/${id}?cacheBust=1`, { method }), id),
+      ];
+      for (const response of responses) {
+        expect(response.status).toBe(405);
+        expect(response.headers.get('allow')).toBe('GET');
+        expect(response.headers.get('location')).toBeNull();
+        expect(response.headers.get('cache-control')).toBe('no-store');
+        expect(response.headers.get('cdn-cache-control')).toBe('no-store');
+      }
+    }
+    expect(getToday).not.toHaveBeenCalled();
+    expect(getById).not.toHaveBeenCalled();
+  });
+
   it('treats malformed URI-encoded puzzle IDs as not found', async () => {
     expect(decodePuzzleId('%E0%A4%A')).toBe('');
 

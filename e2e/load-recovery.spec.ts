@@ -5,6 +5,7 @@ test.use({ serviceWorkers: 'block' });
 
 const release = generateDailyPuzzle('2026-09-29');
 const savedCopy = 'Using a saved puzzle from 2026-09-29. Today’s puzzle could not be loaded.';
+const rateLimited = { status: 429, contentType: 'text/html', body: '<!doctype html><title>Too many requests</title>' };
 
 test('dates and announces an older fallback, preserves the round, and avoids automatic retries', async ({ page, browserName }) => {
   await page.clock.install({ time: new Date('2026-09-29T16:00:00Z') });
@@ -12,7 +13,7 @@ test('dates and announces an older fallback, preserves the round, and avoids aut
   let requests = 0;
   await page.route('**/api/puzzles/today', async route => {
     requests++;
-    await route.fulfill(failing ? { status: 429 } : { json: release });
+    await route.fulfill(failing ? rateLimited : { json: release });
   });
   await page.goto('/');
   await page.getByRole('radio', { name: /^Easy / }).check();
@@ -98,11 +99,32 @@ test('a first visit times out with an accessible error and supports keyboard ret
   expect(requests).toBe(2);
 });
 
+test('a first visit receiving HTML 429 offers keyboard retry without automatic requests', async ({ page, browserName }) => {
+  await page.clock.install({ time: new Date('2026-09-29T16:00:00Z') });
+  let requests = 0;
+  let recover = false;
+  await page.route('**/api/puzzles/today', async route => {
+    requests++;
+    await route.fulfill(recover ? { json: release } : rateLimited);
+  });
+  await page.goto('/');
+  await expect(page.getByRole('alert')).toContainText('We couldn’t load today’s puzzle');
+  await expect(page.getByRole('button', { name: 'Start puzzle', exact: true })).toHaveCount(0);
+  await page.clock.fastForward(60_000);
+  expect(requests).toBe(1);
+  recover = true;
+  await page.keyboard.press(browserName === 'webkit' ? 'Alt+Tab' : 'Tab');
+  await expect(page.getByRole('button', { name: 'Try again', exact: true })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Choose your mode' })).toBeVisible();
+  expect(requests).toBe(2);
+});
+
 for (const cacheState of ['missing', 'invalid-json', 'invalid-release', 'unavailable-storage']) {
-  test(`preserves progress and results through ${cacheState} cache failure and retry`, async ({ page }) => {
+  test(`preserves progress and results through HTML 429 with ${cacheState} cache and retry`, async ({ page }) => {
     await page.clock.install({ time: new Date('2026-09-29T16:00:00Z') });
     let failing = false;
-    await page.route('**/api/puzzles/today', route => route.fulfill(failing ? { status: 503 } : { json: release }));
+    await page.route('**/api/puzzles/today', route => route.fulfill(failing ? rateLimited : { json: release }));
     await page.goto('/');
     await page.getByRole('radio', { name: /^Hard / }).check();
     await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
