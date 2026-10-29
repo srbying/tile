@@ -690,6 +690,7 @@ test('makes all difficulties playable for a new daily puzzle', async ({ page }) 
     contentType: 'application/json',
     body: JSON.stringify(nextRelease),
   }));
+  await page.clock.setFixedTime(new Date('2026-09-30T12:00:00.000Z'));
   await page.reload();
 
   await expect(page.getByRole('contentinfo')).toContainText('2026-09-30');

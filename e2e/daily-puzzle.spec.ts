@@ -6,6 +6,10 @@ test('serves a stable generated daily puzzle and starts gameplay with it', async
   const todayResponse = await page.request.get('/api/puzzles/today');
   expect(todayResponse.status()).toBe(200);
   expect(todayResponse.headers()['cache-control']).toBe('no-store');
+  expect(todayResponse.headers()['cdn-cache-control'])
+    .toMatch(/^public, s-maxage=\d+, must-revalidate, stale-while-revalidate=0, stale-if-error=0$/);
+  expect(Date.parse(todayResponse.headers()['expires']!))
+    .toBeGreaterThan(Date.parse(todayResponse.headers()['date']!));
   const release = await todayResponse.json() as {
     puzzleId: string;
     releaseDate: string;
@@ -30,12 +34,69 @@ test('serves a stable generated daily puzzle and starts gameplay with it', async
   expect(malformedIdResponse.status()).toBe(404);
   expect(await malformedIdResponse.json()).toEqual({ error: 'Puzzle not found.' });
 
+  const dailyRequest = page.waitForRequest((request) => new URL(request.url()).pathname === '/api/puzzles/today');
   await page.goto('/');
+  const requestHeaders = (await dailyRequest).headers();
+  expect(requestHeaders['cache-control'] ?? '').not.toMatch(/no-cache|no-store/);
+  expect(requestHeaders['pragma'] ?? '').not.toContain('no-cache');
   await expect(page.getByRole('heading', { name: /Daily Tile-Swap Puzzle/ })).toBeVisible();
-  await expect(page.getByRole('contentinfo')).toContainText(release.releaseDate);
+  for (const mode of ['Easy', 'Medium', 'Hard']) {
+    await page.getByRole('radio', { name: new RegExp(`^${mode}\\b`) }).check();
+    await expect(page.getByRole('contentinfo')).toContainText(release.releaseDate);
+  }
   await page.getByRole('button', { name: 'Start puzzle' }).click();
   await expect(page.getByRole('list', { name: 'Target pattern' }).getByRole('listitem')).toHaveCount(36);
   await expect(page.getByRole('group', { name: 'Your tiles' }).getByRole('button')).toHaveCount(36);
+});
+
+test.describe('online cache validation', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('rejects a stale CDN reply and restores today’s saved round on retry', async ({ page }) => {
+    const response = await page.request.get('/api/puzzles/today');
+    const release = await response.json();
+    const previousDate = new Date(Date.parse(`${release.releaseDate}T00:00:00Z`) - 86400000)
+      .toISOString().slice(0, 10);
+    const previousId = release.puzzleId.replace(release.releaseDate, previousDate);
+    const staleRelease = {
+      ...release,
+      puzzleId: previousId,
+      releaseDate: previousDate,
+      puzzle: { ...release.puzzle, id: previousId },
+    };
+    await page.clock.setFixedTime(new Date(`${release.releaseDate}T12:00:00Z`));
+    let serveStale = false;
+    await page.route('**/api/puzzles/today', (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(serveStale ? staleRelease : release),
+    }));
+    await page.goto('/');
+    await page.getByRole('radio', { name: /^Hard\b/ }).check();
+    await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
+    const tiles = page.getByRole('group', { name: 'Your tiles' }).getByRole('button');
+    await tiles.nth(0).click();
+    await tiles.nth(1).click();
+    await page.getByRole('button', { name: 'Show hint', exact: true }).click();
+    await expect(page.getByText('9 swaps left', { exact: true })).toBeVisible();
+    const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!));
+
+    serveStale = true;
+    // With no offline copy, a wrong-date CDN reply must show error and retry.
+    await page.evaluate(async () => { await caches.delete('tile-current-daily-puzzle-v1'); });
+    await page.reload();
+    await expect(page.getByRole('alert')).toContainText('We couldn’t load today’s puzzle');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!)))
+      .toMatchObject({ puzzleId: saved.puzzleId, tierId: 'hard', attemptsUsed: 1, hintUsed: true, board: saved.board });
+
+    serveStale = false;
+    await page.getByRole('button', { name: 'Try again', exact: true }).click();
+    await expect(page.getByRole('contentinfo')).toContainText(release.releaseDate);
+    await expect(page.getByText('9 swaps left', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Show hint', exact: true })).toBeDisabled();
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tile-puzzle-progress:v1')!)))
+      .toMatchObject({ puzzleId: saved.puzzleId, tierId: 'hard', attemptsUsed: 1, hintUsed: true, board: saved.board });
+  });
 });
 
 test('replays v1 puzzle IDs after the v3 generator rollout', async ({ page }) => {

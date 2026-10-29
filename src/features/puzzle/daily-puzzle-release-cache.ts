@@ -1,3 +1,4 @@
+import { getNewYorkPuzzleDate } from './daily-puzzle-generator.js';
 import { parsePuzzleCandidate, validatePuzzleCandidate } from './puzzle-candidate.js';
 import type { DailyPuzzleRelease, PuzzleCandidate } from './puzzle.types.js';
 
@@ -23,6 +24,7 @@ export interface CurrentPuzzleLoad {
 }
 
 interface DailyPuzzleReleaseLoaderDependencies {
+  readonly now?: () => Date;
   readonly fetcher: (input: string, init: RequestInit) => Promise<Response>;
   readonly cache?: DailyPuzzleReleaseCache;
 }
@@ -96,7 +98,7 @@ export function parseDailyPuzzleRelease(value: unknown): DailyPuzzleRelease | nu
   const puzzle = parsePuzzleCandidate(release.puzzle);
   if (!puzzle || release.puzzleId !== puzzle.id || typeof release.releaseDate !== 'string'
     || (release.generatorVersion !== 1 && release.generatorVersion !== 2 && release.generatorVersion !== 3)
-    || !release.puzzleId.startsWith(`daily-v${release.generatorVersion}-`)) return null;
+    || !release.puzzleId.startsWith(`daily-v${release.generatorVersion}-${release.releaseDate}-`)) return null;
   const identity = /^daily-v([123])-(\d{4}-\d{2}-\d{2})-(\d+)-(\d+)$/.exec(release.puzzleId);
   const date = new Date(`${release.releaseDate}T00:00:00.000Z`);
   if (!identity || identity[2] !== release.releaseDate || !Number.isFinite(date.valueOf())
@@ -117,13 +119,17 @@ export function parseDailyPuzzleRelease(value: unknown): DailyPuzzleRelease | nu
 }
 
 export function createDailyPuzzleReleaseLoader(dependencies: DailyPuzzleReleaseLoaderDependencies) {
+  const now = dependencies.now ?? (() => new Date());
   const readCachedRelease = async (): Promise<DailyPuzzleRelease | null> => {
     if (!dependencies.cache) return null;
     try {
       const cached = await dependencies.cache.read();
       if (cached === null) return null;
       const release = parseDailyPuzzleRelease(cached);
-      if (!release) await dependencies.cache.clear();
+      if (!release || release.releaseDate > getNewYorkPuzzleDate(now())) {
+        await dependencies.cache.clear();
+        return null;
+      }
       return release;
     } catch {
       return null;
@@ -135,14 +141,17 @@ export function createDailyPuzzleReleaseLoader(dependencies: DailyPuzzleReleaseL
     try {
       release = await withDeadline(
         async (requestSignal) => {
-          const response = await dependencies.fetcher('/api/puzzles/today', { cache: 'no-store', signal: requestSignal });
+          const response = await dependencies.fetcher('/api/puzzles/today', { cache: 'default', signal: requestSignal });
           if (response.status === 404) return null;
           if (response.status === 429 || response.status >= 500) throw new Error('Daily puzzle is unavailable.');
           if (!response.ok) throw new PuzzleRequestError('Puzzle request failed.');
 
           const payload: unknown = await response.json();
           const parsed = parseDailyPuzzleRelease(payload);
-          if (!parsed) throw new Error('Invalid daily puzzle release.');
+          // Check at receipt time: an in-flight request may cross midnight.
+          if (!parsed || parsed.releaseDate !== getNewYorkPuzzleDate(now())) {
+            throw new Error('Invalid daily puzzle release.');
+          }
           return parsed;
         },
         signal,
