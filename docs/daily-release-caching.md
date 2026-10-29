@@ -102,7 +102,9 @@ done
 rg -i '^(HTTP/|cache-control:|cdn-cache-control:|age:|x-vercel-cache:|x-vercel-id:)' historical-*.headers
 ```
 
-Require 200 JSON with the exact requested `puzzleId` and matching `puzzle.id`, identical bodies per URL, and both historical headers above. Expect subsequent requests in a warm region to show `HIT`; record `Age` when present. Also request an out-of-range ID such as `daily-v3-2026-09-29-45-0`, a malformed encoded ID, and a supported ID dated tomorrow: all must return JSON 404 with browser/CDN `no-store`. These checks use the existing automatic PR preview or an already authorized deployment; they do not require a manual deployment or production setting changes.
+Require 200 JSON with the exact requested `puzzleId` and matching `puzzle.id`, identical bodies per URL, and both historical headers above. Expect subsequent requests in a warm region to show `HIT`; record `Age` when present. Also request an out-of-range ID such as `daily-v3-2026-09-29-45-0`, a noncanonical ID such as `daily-v3-2026-09-29-00-0`, and a supported ID dated tomorrow: all must return JSON 404 with browser/CDN `no-store`. These checks use the existing automatic PR preview or an already authorized deployment; they do not require a manual deployment or production setting changes.
+
+Broken percent-encoding such as `%E0%A4%A` can be rejected by the hosting HTTP layer before the function runs: the automatic preview returned plain HTTP 400 for this path. Such transport errors do not carry application headers. Malformed IDs that reach the function return the JSON 404 contract; local tests separately verify that decoding failures are handled without invoking generation.
 
 Record the deployment URL, UTC timestamps, status/cache headers, IDs, and dates. If all three requests remain misses, inspect cache directives, authorization, rewrites, and the `x-vercel-id` region before increasing traffic. These three requests are a smoke test, not a load test or a capacity claim.
 
