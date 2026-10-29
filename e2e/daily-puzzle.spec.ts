@@ -28,6 +28,7 @@ test('serves a stable generated daily puzzle and starts gameplay with it', async
   const savedResponse = await page.request.get(`/api/puzzles/${release.puzzleId}`);
   expect(savedResponse.status()).toBe(200);
   expect(savedResponse.headers()['cache-control']).toContain('immutable');
+  expect(savedResponse.headers()['cdn-cache-control']).toBe('public, s-maxage=31536000, immutable');
   expect(await savedResponse.json()).toEqual(release);
 
   const malformedIdResponse = await page.request.get('/api/puzzles/%E0%A4%A');
@@ -103,6 +104,7 @@ test('replays v1 puzzle IDs after the v3 generator rollout', async ({ page }) =>
   const response = await page.request.get('/api/puzzles/daily-v1-2026-09-29-0-0');
 
   expect(response.status()).toBe(200);
+  expect(response.headers()['cdn-cache-control']).toBe('public, s-maxage=31536000, immutable');
   const release = await response.json() as {
     puzzleId: string;
     generatorVersion: number;

@@ -39,7 +39,7 @@ The browser suite builds the app and starts a local production preview automatic
 - Every committed swap uses one attempt. Selection and cancellation are free. A correct final swap wins; an incorrect final attempt ends in failure. Both terminal boards remain inspectable and reject further swaps.
 - Active solve timing starts on the first committed swap, pauses while the page is hidden, and stops at win or failure. Results show active time, swaps used and allowed, hint use, and a concise motif explanation.
 - Each day’s puzzle is generated deterministically from the New York calendar date. Every tier has a 10-swap shortest solution, budgets stay at 15 / 13 / 10, and visible targets do not repeat within 30 days.
-- Reload before the first move returns to mode selection. Reload an unfinished round to restore mode, board, attempts, hint, puzzle ID, and active time. Saved rounds fetch their original versioned puzzle by ID.
+- Reload before the first move returns to mode selection. Reload an unfinished round to restore mode, board, attempts, hint, puzzle ID, and active time. Same-day saved rounds and completed results resolve their original supported v1/v2/v3 puzzle locally by immutable ID, including after a generator rollout.
 - Open **Offline authoring** or visit `/author` to generate, edit, import, validate, preview, and export candidates. Authoring is optional and separate from automatic daily generation.
 
 ## Design boundaries

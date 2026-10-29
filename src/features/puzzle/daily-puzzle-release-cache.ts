@@ -1,6 +1,7 @@
 import { getNewYorkPuzzleDate } from './daily-puzzle-generator.js';
 import { parsePuzzleCandidate, validatePuzzleCandidate } from './puzzle-candidate.js';
 import type { DailyPuzzleRelease, PuzzleCandidate } from './puzzle.types.js';
+import { parseDailyPuzzleId } from './daily-puzzle-identity.js';
 
 export interface DailyPuzzleReleaseCache {
   read(): Promise<unknown | null>;
@@ -95,14 +96,11 @@ export function createDailyPuzzleReleaseCache(
 export function parseDailyPuzzleRelease(value: unknown): DailyPuzzleRelease | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   const release = value as Record<string, unknown>;
+  const identity = typeof release.puzzleId === 'string' ? parseDailyPuzzleId(release.puzzleId) : null;
+  if (!identity || identity.releaseDate !== release.releaseDate
+    || identity.generatorVersion !== release.generatorVersion) return null;
   const puzzle = parsePuzzleCandidate(release.puzzle);
-  if (!puzzle || release.puzzleId !== puzzle.id || typeof release.releaseDate !== 'string'
-    || (release.generatorVersion !== 1 && release.generatorVersion !== 2 && release.generatorVersion !== 3)
-    || !release.puzzleId.startsWith(`daily-v${release.generatorVersion}-${release.releaseDate}-`)) return null;
-  const identity = /^daily-v([123])-(\d{4}-\d{2}-\d{2})-(\d+)-(\d+)$/.exec(release.puzzleId);
-  const date = new Date(`${release.releaseDate}T00:00:00.000Z`);
-  if (!identity || identity[2] !== release.releaseDate || !Number.isFinite(date.valueOf())
-    || date.toISOString().slice(0, 10) !== release.releaseDate) return null;
+  if (!puzzle || release.puzzleId !== puzzle.id) return null;
   // v2 may contain an invisible ribbon swap or a hint for one. Keep its board,
   // but validate the corrected visible solution and refresh its hints.
   const isV2 = release.generatorVersion === 2;
@@ -113,7 +111,7 @@ export function parseDailyPuzzleRelease(value: unknown): DailyPuzzleRelease | nu
   return {
     puzzleId: release.puzzleId,
     releaseDate: release.releaseDate,
-    generatorVersion: release.generatorVersion,
+    generatorVersion: identity.generatorVersion,
     puzzle: isV2 ? { ...puzzle, hints } : puzzle,
   };
 }

@@ -46,6 +46,13 @@ describe('daily puzzle release cache', () => {
     expect(parseDailyPuzzleRelease({ ...today, releaseDate: '2026-09-30' })).toBeNull();
   });
 
+  it.each([
+    'daily-v3-2026-09-29-45-0', 'daily-v3-2026-09-29-00-0',
+    'daily-v3-2026-09-29-0-00', 'daily-v3-2026-09-29-0-4',
+  ])('rejects invalid identity fields even in an otherwise valid release (%s)', (puzzleId) => {
+    expect(parseDailyPuzzleRelease({ ...today, puzzleId, puzzle: { ...today.puzzle, id: puzzleId } })).toBeNull();
+  });
+
   it('refreshes old ribbon hints and accepts a shorter visible solution in cached v2 releases', () => {
     const legacy = dailyPuzzleFromId('daily-v2-2026-10-19-16-0')!;
     // A cached hint may refer to the now-equivalent ribbons. Recompute it from the board.
