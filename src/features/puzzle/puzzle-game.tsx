@@ -7,7 +7,8 @@ import { PuzzleBoard, TargetBoard, describePosition } from './puzzle-board';
 import { createPuzzleCompletionRepository, createPuzzleProgressRepository } from './puzzle-progress';
 import type { PuzzleCompletionsByTier, PuzzleProgressRepository } from './puzzle-progress';
 import type { DailyPuzzleRelease, SavedPuzzleCompletionV1, SavedPuzzleProgressV1 } from './puzzle.types';
-import { getDailyPuzzleForId, getNextNewYorkMidnight, getNewYorkPuzzleDate } from './daily-puzzle-generator';
+import { getNextNewYorkMidnight, getNewYorkPuzzleDate } from './daily-puzzle-generator';
+import { restoreDailyPuzzle } from './daily-puzzle-restore';
 import {
   createDailyPuzzleReleaseCache,
   createDailyPuzzleReleaseLoader,
@@ -53,24 +54,6 @@ function SavedPuzzleNotice({ releaseDate }: { readonly releaseDate: string }) {
       Using a saved puzzle from <time dateTime={releaseDate}>{releaseDate}</time>. Today’s puzzle could not be loaded.
     </output>
   );
-}
-
-function validatePuzzleCompletions(
-  release: DailyPuzzleRelease,
-  completions: PuzzleCompletionsByTier,
-): PuzzleCompletionsByTier {
-  const valid: PuzzleCompletionsByTier = {};
-  for (const tier of difficultyTierConfigs) {
-    const completion = completions[tier.id];
-    if (!completion || completion.puzzleId !== release.puzzleId || completion.tierId !== tier.id) continue;
-    const puzzle = buildDifficultyPuzzle(release.puzzle, tier.id);
-    const engine = createPuzzleEngine(puzzle, {
-      sameAppearance,
-      attemptLimit: release.puzzle.attemptLimits[tier.id],
-    });
-    if (engine.restoreCompletion(completion)) valid[tier.id] = completion;
-  }
-  return valid;
 }
 
 function isCompletionSnapshot(
@@ -711,51 +694,14 @@ export function PuzzleGame() {
     if (!dailyLoad) throw new Error('Daily puzzle is unavailable.');
 
     const saved = progressRepository.load();
-    const storedCompletions = completionRepository.load();
-    const previousId = saved?.puzzleId ?? Object.values(storedCompletions)[0]?.puzzleId;
-    // A version rollout must not discard today's round. Old dates still expire.
-    const previousRelease = dailyLoad.release.generatorVersion === 3
-      && previousId?.startsWith(`daily-v2-${dailyLoad.release.releaseDate}-`)
-      ? getDailyPuzzleForId(previousId) : null;
-    const activeRelease = previousRelease ?? dailyLoad.release;
-    const savedCompletions = validatePuzzleCompletions(
-      activeRelease,
-      completionRepository.load(activeRelease.puzzleId),
-    );
-    if (saved) {
-      if (activeRelease.puzzleId === saved.puzzleId && !savedCompletions[saved.tierId]) {
-        const savedTier = getDifficultyTierConfig(saved.tierId);
-        const savedPuzzle = buildDifficultyPuzzle(activeRelease.puzzle, savedTier.id);
-        const savedEngine = createPuzzleEngine(savedPuzzle, {
-          sameAppearance,
-          attemptLimit: activeRelease.puzzle.attemptLimits[savedTier.id],
-        });
-        const recoveredCompletion: SavedPuzzleCompletionV1 = { ...saved, status: 'won', hintedPositions: null };
-        if (savedEngine.restoreCompletion(recoveredCompletion)) {
-          completionRepository.save(recoveredCompletion);
-          progressRepository.clear();
-          return {
-            release: activeRelease,
-            restoredProgress: null,
-            recoveredCompletion,
-            completions: { ...savedCompletions, [saved.tierId]: recoveredCompletion },
-            source: dailyLoad.source,
-          };
-        }
-        if (savedEngine.restore(saved)) {
-          return {
-            release: activeRelease,
-            restoredProgress: saved,
-            recoveredCompletion: null,
-            completions: savedCompletions,
-            source: dailyLoad.source,
-          };
-        }
-      }
-      if (dailyLoad.source === 'network') progressRepository.clear();
+    const restored = restoreDailyPuzzle(dailyLoad.release, saved, completionRepository.load());
+    if (restored.recoveredCompletion) {
+      completionRepository.save(restored.recoveredCompletion);
+      progressRepository.clear();
+    } else if (saved && !restored.restoredProgress && dailyLoad.source === 'network') {
+      progressRepository.clear();
     }
-
-    return { release: activeRelease, restoredProgress: null, recoveredCompletion: null, completions: savedCompletions, source: dailyLoad.source };
+    return { ...restored, source: dailyLoad.source };
   }, [completionRepository, fetchToday, progressRepository]);
 
   const pendingReleaseDate = useRef<string | null>(null);

@@ -1,6 +1,7 @@
 import { buildDifficultyPuzzle, difficultyTierConfigs } from './difficulty-preview.js';
 import { validatePuzzleCandidate } from './puzzle-candidate.js';
 import { samplePuzzle } from './sample-puzzle.js';
+import { parseDailyPuzzleId } from './daily-puzzle-identity.js';
 import { canonicalBoardTargetKey, hasRecentVisualDuplicate } from './puzzle-symmetry.js';
 import { sameAppearance } from './tile-appearance.js';
 import { createDailyPuzzleTarget, dailyPuzzleTargetCycleLength, getDailyPuzzleArt } from './daily-puzzle-art.js';
@@ -325,23 +326,18 @@ export function generateDailyCandidate(date: string, variation = 0): PuzzleCandi
 }
 
 export function dailyPuzzleFromId(puzzleId: string): DailyPuzzleRelease | null {
-  const match = /^daily-v(\d+)-(\d{4}-\d{2}-\d{2})-(\d+)-(\d+)$/.exec(puzzleId);
-  if (!match || !isIsoDate(match[2]!)) return null;
-  const [, versionText, releaseDate, variationText, scrambleText] = match;
-  const version = Number(versionText);
-  const variation = Number(variationText);
-  const scramble = Number(scrambleText);
+  const identity = parseDailyPuzzleId(puzzleId);
+  if (!identity) return null;
+  const { generatorVersion: version, releaseDate, variation, scramble } = identity;
   if (version === legacyGeneratorVersion) {
-    if (variation >= legacyTargetCycleLength || scramble >= scramblePlansPerTarget) return null;
-    const puzzle = legacyCandidateForVariation(releaseDate!, variation, scramble);
+    const puzzle = legacyCandidateForVariation(releaseDate, variation, scramble);
     if (!puzzle || puzzle.id !== puzzleId) return null;
-    return { puzzleId, releaseDate: releaseDate!, generatorVersion: legacyGeneratorVersion, puzzle };
+    return { puzzleId, releaseDate, generatorVersion: legacyGeneratorVersion, puzzle };
   }
-  if ((version !== 2 && version !== dailyPuzzleGeneratorVersion)
-    || variation >= targetVariations || scramble >= scramblePlansPerTarget) return null;
-  const puzzle = createDailyCandidate(releaseDate!, variation, scramble, version);
+  // Historical v3 support must survive a future current-generator version bump.
+  const puzzle = createDailyCandidate(releaseDate, variation, scramble, version);
   if (!puzzle || puzzle.id !== puzzleId) return null;
-  return { puzzleId, releaseDate: releaseDate!, generatorVersion: version, puzzle };
+  return { puzzleId, releaseDate, generatorVersion: version, puzzle };
 }
 
 export function getRecentPuzzleTargets(date: string, count = 30): readonly (readonly TileAppearance[])[] {

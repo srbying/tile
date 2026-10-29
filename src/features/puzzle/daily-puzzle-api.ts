@@ -1,6 +1,7 @@
 import { dailyPuzzleFromId, getDailyPuzzleForNow, getNextNewYorkMidnight, getNewYorkPuzzleDate } from './daily-puzzle-generator.js';
 import { parseDailyPuzzleRelease } from './daily-puzzle-release-cache.js';
 import type { DailyPuzzleRelease } from './puzzle.types.js';
+import { parseDailyPuzzleId } from './daily-puzzle-identity.js';
 
 export interface DailyPuzzleApiDependencies {
   readonly now?: () => Date;
@@ -61,11 +62,27 @@ export function createDailyPuzzleApi(dependencies: DailyPuzzleApiDependencies = 
 
     async byId(request: Request, puzzleId: string): Promise<Response> {
       if (request.method !== 'GET') return methodNotAllowed();
-      const release = getById(puzzleId);
-      if (!release || release.releaseDate > getNewYorkPuzzleDate(now())) {
+      const identity = parseDailyPuzzleId(puzzleId);
+      if (!identity || identity.releaseDate > getNewYorkPuzzleDate(now())) {
         return Response.json({ error: 'Puzzle not found.' }, { status: 404, headers: noStoreHeaders });
       }
-      return Response.json(release, { headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } });
+      try {
+        const provided = getById(puzzleId);
+        if (!provided) {
+          return Response.json({ error: 'Puzzle not found.' }, { status: 404, headers: noStoreHeaders });
+        }
+        const release = parseDailyPuzzleRelease(provided);
+        if (!release || release.puzzleId !== puzzleId) throw new Error('Invalid historical release.');
+        return Response.json(release, { headers: {
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          'CDN-Cache-Control': 'public, s-maxage=31536000, immutable',
+        } });
+      } catch {
+        return Response.json(
+          { error: 'Puzzle is temporarily unavailable.' },
+          { status: 503, headers: noStoreHeaders },
+        );
+      }
     },
   };
 }

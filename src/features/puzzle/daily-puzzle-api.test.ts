@@ -11,9 +11,28 @@ describe('daily puzzle API', () => {
     const api = createDailyPuzzleApi({ getById });
     const response = await api.byId(new Request('https://tile.example/api/puzzles/%E0%A4%A'), decodePuzzleId('%E0%A4%A'));
 
-    expect(getById).toHaveBeenCalledWith('');
+    expect(getById).not.toHaveBeenCalled();
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: 'Puzzle not found.' });
+  });
+
+  it.each([
+    'nope', 'daily-v4-2026-09-29-0-0', 'daily-v01-2026-09-29-0-0',
+    'daily-v1-2026-09-29-67-0', 'daily-v2-2026-09-29-45-0', 'daily-v3-2026-09-29-45-0',
+    'daily-v3-2026-09-29-00-0', 'daily-v3-2026-09-29-0-00', 'daily-v3-2026-09-29-0-4',
+    'daily-v3-2026-02-29-0-0', 'daily-v3-2026-04-31-0-0',
+    'daily-v1-2026-09-30-0-0', 'daily-v2-2026-09-30-0-0', 'daily-v3-2026-09-30-0-0',
+    'x'.repeat(10000),
+  ])('rejects invalid or unreleased IDs before generation (%#)', async (id) => {
+    const getById = vi.fn(() => null);
+    const api = createDailyPuzzleApi({ now: () => new Date('2026-09-30T03:59:59Z'), getById });
+    const response = await api.byId(new Request('https://tile.example/api/puzzles/id'), id);
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: 'Puzzle not found.' });
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(response.headers.get('cdn-cache-control')).toBe('no-store');
+    expect(getById).not.toHaveBeenCalled();
   });
 
   it('returns today’s stable release from the New York date provider', async () => {
@@ -161,6 +180,7 @@ describe('daily puzzle API', () => {
     const saved = await api.byId(savedRequest, savedId);
     expect(saved.status).toBe(200);
     expect(saved.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+    expect(saved.headers.get('cdn-cache-control')).toBe('public, s-maxage=31536000, immutable');
     expect((await saved.clone().json()).puzzleId).toBe(savedId);
     expect(await (await api.byId(savedRequest, savedId)).json()).toEqual(await saved.json());
 
@@ -198,6 +218,47 @@ describe('daily puzzle API', () => {
 
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: 'Puzzle not found.' });
+  });
+
+  it.each([[1, 66], [2, 44], [3, 44]])('rebuilds identical v%s payloads on separate origin misses at the historical bounds', async (version, variation) => {
+    const id = `daily-v${version}-2024-02-29-${variation}-3`;
+    const request = new Request(`https://tile.example/api/puzzles/${id}`);
+    const first = await createDailyPuzzleApi({ now: () => new Date('2026-10-19T12:00:00Z') }).byId(request, id);
+    const second = await createDailyPuzzleApi({ now: () => new Date('2026-11-19T12:00:00Z') }).byId(request, id);
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(await first.text()).toBe(await second.text());
+    expect(first.headers.get('cdn-cache-control')).toBe('public, s-maxage=31536000, immutable');
+  });
+
+  it('returns an uncached 404 when a supported ID is unavailable', async () => {
+    const id = 'daily-v3-2026-09-29-0-0';
+    const api = createDailyPuzzleApi({ now: () => new Date('2026-10-19T12:00:00Z'), getById: () => null });
+    const response = await api.byId(new Request(`https://tile.example/api/puzzles/${id}`), id);
+    expect(response.status).toBe(404);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(response.headers.get('cdn-cache-control')).toBe('no-store');
+  });
+
+  it.each(['exception', 'board', 'identity', 'date', 'version'])('does not cache a historical provider failure: %s', async (failure) => {
+    const release = generateDailyPuzzle('2026-09-29');
+    const api = createDailyPuzzleApi({
+      now: () => new Date('2026-09-29T12:00:00Z'),
+      getById: () => {
+        if (failure === 'exception') throw new Error('generation failed');
+        if (failure === 'board') return { ...release, puzzle: { ...release.puzzle, target: [] } };
+        if (failure === 'identity') return { ...release, puzzleId: release.puzzleId.replace('-0-2', '-1-2'),
+          puzzle: { ...release.puzzle, id: release.puzzleId.replace('-0-2', '-1-2') } };
+        if (failure === 'date') return { ...release, releaseDate: '2026-09-28' };
+        return { ...release, generatorVersion: 2 };
+      },
+    });
+    const response = await api.byId(new Request(`https://tile.example/api/puzzles/${release.puzzleId}`), release.puzzleId);
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: 'Puzzle is temporarily unavailable.' });
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(response.headers.get('cdn-cache-control')).toBe('no-store');
   });
 
   it('fails closed when automatic generation cannot produce a validated release', async () => {
