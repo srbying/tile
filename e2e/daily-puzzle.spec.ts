@@ -154,7 +154,7 @@ test('retries a stale cached release when the page resumes after midnight', asyn
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
 
   await expect.poll(() => releaseRequests).toBe(2);
-  await expect(page.getByText('Using a saved copy of today’s puzzle', { exact: true })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Using a saved puzzle from 2026-09-30.' })).toBeVisible();
   await page.evaluate(() => window.dispatchEvent(new Event('pageshow')));
 
   await expect(page.getByRole('contentinfo')).toContainText('2026-10-01');
@@ -180,7 +180,7 @@ test('keeps the app and current puzzle playable after going offline', async ({ p
 
   await expect(page.getByRole('heading', { name: 'Choose your mode' })).toBeVisible();
   await expect(page.getByRole('contentinfo')).toContainText(release.releaseDate);
-  await expect(page.getByText('Using a saved copy of today’s puzzle', { exact: true })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: `Using a saved puzzle from ${release.releaseDate}.` })).toBeVisible();
   await page.getByRole('button', { name: 'Start puzzle', exact: true }).click();
   const board = page.getByRole('group', { name: 'Your tiles' }).getByRole('button');
   await board.nth(0).click();
@@ -209,7 +209,7 @@ test('restores current-release progress from the cached puzzle while offline', a
   await page.reload();
 
   await expect(page.getByText('12 swaps left', { exact: true })).toBeVisible();
-  await expect(page.getByText('Using a saved copy of today’s puzzle', { exact: true })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: `Using a saved puzzle from ${release.releaseDate}.` })).toBeVisible();
   const resumedBoard = page.getByRole('group', { name: 'Your tiles' }).getByRole('button');
   await resumedBoard.nth(2).click();
   await resumedBoard.nth(3).click();

@@ -29,6 +29,38 @@ interface DailyPuzzleReleaseLoaderDependencies {
 
 const releaseCacheName = 'tile-current-daily-puzzle-v1';
 const releaseCachePath = '/__daily-puzzle-cache__/current';
+const requestTimeoutMilliseconds = 10_000;
+const cacheTimeoutMilliseconds = 1_000;
+
+// Race the operation as well as aborting it: a stalled body or storage API may
+// not cooperate with cancellation. Always remove the deadline and listener.
+async function withDeadline<T>(
+  operation: (signal: AbortSignal) => Promise<T>,
+  signal: AbortSignal,
+  milliseconds: number,
+): Promise<T> {
+  signal.throwIfAborted();
+  const controller = new AbortController();
+  let timeout: ReturnType<typeof setTimeout>;
+  let cancel: () => void;
+  const interrupted = new Promise<never>((_resolve, reject) => {
+    cancel = () => {
+      reject(signal.reason);
+      controller.abort();
+    };
+    signal.addEventListener('abort', cancel, { once: true });
+    timeout = setTimeout(() => {
+      reject(new Error('Daily puzzle request timed out.'));
+      controller.abort();
+    }, milliseconds);
+  });
+  try {
+    return await Promise.race([operation(controller.signal), interrupted]);
+  } finally {
+    clearTimeout(timeout!);
+    signal.removeEventListener('abort', cancel!);
+  }
+}
 
 export function createDailyPuzzleReleaseCache(
   storage: CacheStorageLike,
@@ -65,6 +97,10 @@ export function parseDailyPuzzleRelease(value: unknown): DailyPuzzleRelease | nu
   if (!puzzle || release.puzzleId !== puzzle.id || typeof release.releaseDate !== 'string'
     || (release.generatorVersion !== 1 && release.generatorVersion !== 2 && release.generatorVersion !== 3)
     || !release.puzzleId.startsWith(`daily-v${release.generatorVersion}-`)) return null;
+  const identity = /^daily-v([123])-(\d{4}-\d{2}-\d{2})-(\d+)-(\d+)$/.exec(release.puzzleId);
+  const date = new Date(`${release.releaseDate}T00:00:00.000Z`);
+  if (!identity || identity[2] !== release.releaseDate || !Number.isFinite(date.valueOf())
+    || date.toISOString().slice(0, 10) !== release.releaseDate) return null;
   // v2 may contain an invisible ribbon swap or a hint for one. Keep its board,
   // but validate the corrected visible solution and refresh its hints.
   const isV2 = release.generatorVersion === 2;
@@ -95,38 +131,41 @@ export function createDailyPuzzleReleaseLoader(dependencies: DailyPuzzleReleaseL
   };
 
   return async (signal: AbortSignal): Promise<CurrentPuzzleLoad | null> => {
-    let response: Response;
+    let release: DailyPuzzleRelease | null;
     try {
-      response = await dependencies.fetcher('/api/puzzles/today', { cache: 'no-store', signal });
+      release = await withDeadline(
+        async (requestSignal) => {
+          const response = await dependencies.fetcher('/api/puzzles/today', { cache: 'no-store', signal: requestSignal });
+          if (response.status === 404) return null;
+          if (response.status === 429 || response.status >= 500) throw new Error('Daily puzzle is unavailable.');
+          if (!response.ok) throw new PuzzleRequestError('Puzzle request failed.');
+
+          const payload: unknown = await response.json();
+          const parsed = parseDailyPuzzleRelease(payload);
+          if (!parsed) throw new Error('Invalid daily puzzle release.');
+          return parsed;
+        },
+        signal,
+        requestTimeoutMilliseconds,
+      );
     } catch (error) {
-      if (signal.aborted || (error instanceof Error && error.name === 'AbortError')) throw error;
-      const cached = await readCachedRelease();
+      if (signal.aborted || error instanceof PuzzleRequestError) throw error;
+      const cached = await withDeadline(readCachedRelease, signal, cacheTimeoutMilliseconds).catch(() => null);
+      signal.throwIfAborted();
       if (cached) return { release: cached, source: 'cache' };
       throw new Error('Daily puzzle is unavailable.');
     }
-
-    if (response.status === 404) return null;
-    if (response.status >= 500) {
-      const cached = await readCachedRelease();
-      if (cached) return { release: cached, source: 'cache' };
-      throw new Error('Daily puzzle is unavailable.');
-    }
-    if (!response.ok) throw new Error('Puzzle request failed.');
-
-    let payload: unknown;
-    try {
-      payload = await response.json() as unknown;
-    } catch {
-      throw new Error('Invalid daily puzzle release.');
-    }
-    const release = parseDailyPuzzleRelease(payload);
-    if (!release) throw new Error('Invalid daily puzzle release.');
+    if (!release) return null;
 
     try {
-      await dependencies.cache?.write(release);
+      await withDeadline(async () => dependencies.cache?.write(release), signal, cacheTimeoutMilliseconds);
     } catch {
       // Cache failures must not prevent an online round from loading.
     }
+    signal.throwIfAborted();
     return { release, source: 'network' };
   };
 }
+
+// Other HTTP client errors are not eligible for a cached fallback.
+class PuzzleRequestError extends Error {}

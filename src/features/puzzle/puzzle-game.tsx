@@ -47,6 +47,14 @@ function GameFooter({ releaseDate }: { readonly releaseDate?: string } = {}) {
   return <footer className="site-footer"><span>Small tiles. A clearer picture.</span><span>{releaseDate ? `Daily puzzle · ${releaseDate}` : 'Sample puzzles'}</span><a href="/author">Puzzle editor</a></footer>;
 }
 
+function SavedPuzzleNotice({ releaseDate }: { readonly releaseDate: string }) {
+  return (
+    <output className="cached-copy-label" aria-live="polite" aria-atomic="true">
+      Using a saved puzzle from <time dateTime={releaseDate}>{releaseDate}</time>. Today’s puzzle could not be loaded.
+    </output>
+  );
+}
+
 function validatePuzzleCompletions(
   release: DailyPuzzleRelease,
   completions: PuzzleCompletionsByTier,
@@ -132,8 +140,8 @@ function ModeSelection({
       <main id="main">
         <section className="intro mode-intro" aria-labelledby="game-title">
           <h1 id="game-title">Daily Tile-Swap Puzzle</h1>
-          <p className="intro-copy">Restore today’s pattern by swapping tiles.</p>
-          {cachedCopy && <p className="cached-copy-label">Using a saved copy of today’s puzzle</p>}
+          <p className="intro-copy">Restore {cachedCopy ? 'the saved' : 'today’s'} pattern by swapping tiles.</p>
+          {cachedCopy && <SavedPuzzleNotice releaseDate={releaseDate} />}
         </section>
 
         <section className="mode-selection" aria-labelledby="mode-heading">
@@ -443,9 +451,10 @@ function PuzzleRound({
       <GameHeader onChooseDifficulty={returnToModes} />
       <main id="main">
         <section className="intro puzzle-intro" aria-labelledby="game-title">
-          <div className="puzzle-caption"><span className="mode-badge">{tier.label} mode</span>{cachedCopy && <span className="cached-copy-label">Using a saved copy of today’s puzzle</span>}</div>
+          <div className="puzzle-caption"><span className="mode-badge">{tier.label} mode</span></div>
           <h1 id="game-title">Daily Tile-Swap Puzzle</h1>
           <p id="game-instruction" className="intro-copy">Look at the target, then select two tiles to swap.</p>
+          {cachedCopy && <SavedPuzzleNotice releaseDate={release.releaseDate} />}
         </section>
 
         <div className="game-layout">
@@ -636,7 +645,7 @@ function PuzzleLoadError({ onRetry }: { readonly onRetry: () => void }) {
       <section className="daily-load-message" aria-labelledby="daily-error-heading">
         <div role="alert">
           <h1 id="daily-error-heading">We couldn’t load today’s puzzle</h1>
-          <p>Please try again.</p>
+          <p>No puzzle could be loaded. Check your connection, then try again.</p>
         </div>
         <button className="start-puzzle" type="button" onClick={onRetry}>Try again</button>
       </section>
@@ -743,15 +752,20 @@ export function PuzzleGame() {
           };
         }
       }
-      progressRepository.clear();
+      if (dailyLoad.source === 'network') progressRepository.clear();
     }
 
     return { release: activeRelease, restoredProgress: null, recoveredCompletion: null, completions: savedCompletions, source: dailyLoad.source };
   }, [completionRepository, fetchToday, progressRepository]);
 
+  const pendingReleaseDate = useRef<string | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     void loadPuzzle(controller.signal).then((loaded) => {
+      if (controller.signal.aborted) return;
+      // A fallback already attempted today's release. Wait for a resume/online
+      // event instead of immediately repeating the failed request on mount.
+      if (loaded.source === 'cache') pendingReleaseDate.current = getNewYorkPuzzleDate(new Date());
       setRelease(loaded.release);
       setReleaseSource(loaded.source);
       setRestoredProgress(loaded.restoredProgress);
@@ -773,7 +787,6 @@ export function PuzzleGame() {
     return () => controller.abort();
   }, [loadPuzzle, loadAttempt]);
 
-  const pendingReleaseDate = useRef<string | null>(null);
   useEffect(() => {
     if (!release) return;
 
