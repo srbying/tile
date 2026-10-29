@@ -75,10 +75,21 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
 
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(async () => {
-      const cache = await caches.open(CACHE_NAME);
-      return (await cache.match('/')) || Response.error();
-    }));
+    event.respondWith((async () => {
+      let response;
+      try {
+        response = await fetch(request);
+        if (response.status !== 429 && response.status < 500) return response;
+      } catch {
+        // Network failures and eligible HTTP errors can use the installed shell.
+      }
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        return (await cache.match('/')) || response || Response.error();
+      } catch {
+        return response || Response.error();
+      }
+    })());
     return;
   }
 
