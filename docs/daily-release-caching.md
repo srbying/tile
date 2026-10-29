@@ -32,6 +32,8 @@ npm run test:e2e -- e2e/daily-puzzle.spec.ts
 
 Controlled-clock tests cover ordinary rollover, both DST transition days and their ending midnights, generation crossing midnight, subsecond expiry, validation failures, stable release identity, and supported historical IDs becoming available at midnight. Loader tests reject stale/future replies before overwriting the offline copy. Browser tests cover all three mode choices, request headers, saved-round retry, existing rollover, offline play, and v1 replay. The broader browser suite exercises completion and resume compatibility.
 
+The SPA rewrite in `vercel.json` excludes `/api` and its children, so dynamic `/api/puzzles/:id` functions can resolve before the HTML fallback. A working `/api/puzzles/today` alone does not verify dynamic API routing.
+
 Vite development and preview return the same origin headers and release content. They do not implement a shared CDN; local responses and tests cannot prove a deployed cache hit.
 
 ## Low-volume deployment smoke test
@@ -62,6 +64,8 @@ PY
 ```
 
 Expect 200 responses, a positive shared TTL, `Expires` at the next New York midnight, and identical bodies. A cold region can start with `MISS` or `REVALIDATED`; subsequent requests should show `HIT`. An already warm region can return `HIT` immediately. Region changes or eviction can cause additional misses, which must still return the same validated release. A cache status alone does not prove freshness: compare the release date, ID, `Date`, `Age` when present, and `Expires` together. Do not run the equality check across midnight.
+
+Also GET `/api/puzzles/<today-puzzle-id>`, `/api/puzzles/daily-v1-2026-09-29-0-0`, and `/api/puzzles/daily-v2-2026-09-29-0-0`. Require JSON 200 responses with immutable cache directives; today’s replay must equal today’s release. A supported ID dated tomorrow must return JSON 404 with `no-store`. An HTML 200 response fails this check because it indicates the SPA rewrite intercepted the API route.
 
 Record the deployment URL, UTC timestamps, status/cache headers, IDs, and dates. If all three requests remain misses, inspect cache directives, authorization, rewrites, and the `x-vercel-id` region before increasing traffic. These three requests are a smoke test, not a load test or a capacity claim.
 
