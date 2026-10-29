@@ -29,6 +29,10 @@ describe('daily puzzle release cache', () => {
     expect(parseDailyPuzzleRelease(today)).toEqual(today);
   });
 
+  it('rejects a release whose date disagrees with its immutable puzzle ID', () => {
+    expect(parseDailyPuzzleRelease({ ...today, releaseDate: '2026-09-30' })).toBeNull();
+  });
+
   it('refreshes old ribbon hints and accepts a shorter visible solution in cached v2 releases', () => {
     const legacy = dailyPuzzleFromId('daily-v2-2026-10-19-16-0')!;
     // A cached hint may refer to the now-equivalent ribbons. Recompute it from the board.
@@ -39,11 +43,11 @@ describe('daily puzzle release cache', () => {
   it('validates and caches the latest successful current-release response', async () => {
     const cache = memoryCache();
     const fetcher = vi.fn(async () => Response.json(today));
-    const load = createDailyPuzzleReleaseLoader({ fetcher, cache });
+    const load = createDailyPuzzleReleaseLoader({ fetcher, cache, now: () => new Date('2026-09-29T12:00:00Z') });
     const signal = new AbortController().signal;
 
     await expect(load(signal)).resolves.toEqual({ release: today, source: 'network' });
-    expect(fetcher).toHaveBeenCalledWith('/api/puzzles/today', { cache: 'no-store', signal });
+    expect(fetcher).toHaveBeenCalledWith('/api/puzzles/today', { cache: 'default', signal });
     expect(cache.write).toHaveBeenCalledWith(today);
   });
 
@@ -53,17 +57,46 @@ describe('daily puzzle release cache', () => {
       vi.fn(async () => new Response(null, { status: 503 })),
     ]) {
       const cache = memoryCache(today);
-      const load = createDailyPuzzleReleaseLoader({ fetcher, cache });
+      const load = createDailyPuzzleReleaseLoader({ fetcher, cache, now: () => new Date('2026-09-29T12:00:00Z') });
 
       await expect(load(new AbortController().signal)).resolves.toEqual({ release: today, source: 'cache' });
       expect(cache.write).not.toHaveBeenCalled();
     }
   });
 
+  it.each([
+    ['stale', '2026-09-30T04:00:00Z'],
+    ['future', '2026-09-29T03:59:59Z'],
+  ])('rejects a %s shared-cache response without overwriting the offline copy', async (_kind, timestamp) => {
+    const cache = memoryCache(nextRelease);
+    const load = createDailyPuzzleReleaseLoader({
+      now: () => new Date(timestamp),
+      fetcher: async () => Response.json(today),
+      cache,
+    });
+
+    await expect(load(new AbortController().signal)).rejects.toThrow('Invalid daily puzzle release.');
+    expect(await cache.read()).toEqual(nextRelease);
+    expect(cache.write).not.toHaveBeenCalled();
+  });
+
+  it('rejects yesterday’s response when a request finishes after midnight', async () => {
+    let clock = new Date('2026-09-30T03:59:59Z');
+    const load = createDailyPuzzleReleaseLoader({
+      now: () => new Date(clock),
+      fetcher: async () => {
+        clock = new Date('2026-09-30T04:00:00Z');
+        return Response.json(today);
+      },
+    });
+
+    await expect(load(new AbortController().signal)).rejects.toThrow('Invalid daily puzzle release.');
+  });
+
   it('replaces the single cached release when a newer daily response arrives', async () => {
     const cache = memoryCache(today);
     const fetcher = vi.fn(async () => Response.json(nextRelease));
-    const load = createDailyPuzzleReleaseLoader({ fetcher, cache });
+    const load = createDailyPuzzleReleaseLoader({ fetcher, cache, now: () => new Date('2026-09-30T12:00:00Z') });
 
     await expect(load(new AbortController().signal)).resolves.toEqual({ release: nextRelease, source: 'network' });
     expect(cache.write).toHaveBeenCalledTimes(1);

@@ -1,3 +1,4 @@
+import { getNewYorkPuzzleDate } from './daily-puzzle-generator.js';
 import { parsePuzzleCandidate, validatePuzzleCandidate } from './puzzle-candidate.js';
 import type { DailyPuzzleRelease, PuzzleCandidate } from './puzzle.types.js';
 
@@ -23,6 +24,7 @@ export interface CurrentPuzzleLoad {
 }
 
 interface DailyPuzzleReleaseLoaderDependencies {
+  readonly now?: () => Date;
   readonly fetcher: (input: string, init: RequestInit) => Promise<Response>;
   readonly cache?: DailyPuzzleReleaseCache;
 }
@@ -64,7 +66,7 @@ export function parseDailyPuzzleRelease(value: unknown): DailyPuzzleRelease | nu
   const puzzle = parsePuzzleCandidate(release.puzzle);
   if (!puzzle || release.puzzleId !== puzzle.id || typeof release.releaseDate !== 'string'
     || (release.generatorVersion !== 1 && release.generatorVersion !== 2 && release.generatorVersion !== 3)
-    || !release.puzzleId.startsWith(`daily-v${release.generatorVersion}-`)) return null;
+    || !release.puzzleId.startsWith(`daily-v${release.generatorVersion}-${release.releaseDate}-`)) return null;
   // v2 may contain an invisible ribbon swap or a hint for one. Keep its board,
   // but validate the corrected visible solution and refresh its hints.
   const isV2 = release.generatorVersion === 2;
@@ -81,6 +83,7 @@ export function parseDailyPuzzleRelease(value: unknown): DailyPuzzleRelease | nu
 }
 
 export function createDailyPuzzleReleaseLoader(dependencies: DailyPuzzleReleaseLoaderDependencies) {
+  const now = dependencies.now ?? (() => new Date());
   const readCachedRelease = async (): Promise<DailyPuzzleRelease | null> => {
     if (!dependencies.cache) return null;
     try {
@@ -97,7 +100,7 @@ export function createDailyPuzzleReleaseLoader(dependencies: DailyPuzzleReleaseL
   return async (signal: AbortSignal): Promise<CurrentPuzzleLoad | null> => {
     let response: Response;
     try {
-      response = await dependencies.fetcher('/api/puzzles/today', { cache: 'no-store', signal });
+      response = await dependencies.fetcher('/api/puzzles/today', { cache: 'default', signal });
     } catch (error) {
       if (signal.aborted || (error instanceof Error && error.name === 'AbortError')) throw error;
       const cached = await readCachedRelease();
@@ -120,7 +123,10 @@ export function createDailyPuzzleReleaseLoader(dependencies: DailyPuzzleReleaseL
       throw new Error('Invalid daily puzzle release.');
     }
     const release = parseDailyPuzzleRelease(payload);
-    if (!release) throw new Error('Invalid daily puzzle release.');
+    // Validate at receipt time too: a CDN reply or an in-flight request can cross midnight.
+    if (!release || release.releaseDate !== getNewYorkPuzzleDate(now())) {
+      throw new Error('Invalid daily puzzle release.');
+    }
 
     try {
       await dependencies.cache?.write(release);
