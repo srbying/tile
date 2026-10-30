@@ -34,7 +34,7 @@ export async function checkPublicGame(page: Page, baseURL: string, options: Publ
   page.on('pageerror', onRuntimeError);
   const result = (ok: boolean): PublicGameCheckResult => ({
     ok, timestamp, durationMilliseconds: Math.max(0, Math.round(performance.now() - started)),
-    ...(ok ? {} : { reason }),
+    ...(ok ? {} : { reason: runtimeError ? 'runtime_error' : reason }),
     ...(pageStatus === undefined ? {} : { pageStatus }),
     ...(releaseStatus === undefined ? {} : { releaseStatus }),
     ...(releaseDate ? { releaseDate } : {}),
@@ -90,9 +90,19 @@ export async function checkPublicGame(page: Page, baseURL: string, options: Publ
         || !await tiles.evaluateAll((buttons) => buttons.every((button) => !button.hasAttribute('disabled')))) return result(false);
       reason = 'interaction_failed';
       await page.getByText('13 swaps left', { exact: true }).waitFor();
+      const readDescriptions = () => tiles.evaluateAll((buttons) => buttons.map((button) =>
+        (button.getAttribute('aria-label') ?? '').split(': ').slice(1).join(': ')));
+      const before = await readDescriptions();
+      if (before.length !== 36 || before.some((description) => !description)) return result(false);
+      const secondPosition = before.findIndex((description) => description !== before[0]);
+      if (secondPosition < 0) return result(false);
+      const expected = [...before];
+      [expected[0], expected[secondPosition]] = [before[secondPosition]!, before[0]!];
       await tiles.nth(0).click();
-      await tiles.nth(1).click();
+      await tiles.nth(secondPosition).click();
       await page.getByText('12 swaps left', { exact: true }).waitFor();
+      const after = await readDescriptions();
+      if (after.length !== expected.length || after.some((description, position) => description !== expected[position])) return result(false);
       if (runtimeError) {
         reason = 'runtime_error';
         return result(false);

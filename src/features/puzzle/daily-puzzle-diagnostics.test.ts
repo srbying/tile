@@ -27,6 +27,30 @@ describe('daily release diagnostics', () => {
     expect(JSON.stringify(reportFailure.mock.calls)).not.toContain('sentinel');
   });
 
+  it.each(['clock', 'timestamp', 'date_formatter'])('preserves the unavailable response when diagnostic %s fails', async (failure) => {
+    let reads = 0;
+    const reportFailure = vi.fn();
+    const api = createDailyPuzzleApi({
+      now: () => {
+        if (++reads === 1) return new Date('2026-10-30T12:00:00Z');
+        if (failure === 'clock') throw new Error('Diagnostic clock unavailable.');
+        const date = new Date(NaN);
+        if (failure === 'date_formatter') date.toISOString = () => '2026-10-30T12:00:00.000Z';
+        return date;
+      },
+      getToday: () => { throw new Error('Generation failed.'); },
+      reportFailure,
+    });
+
+    const response = await api.today(new Request('https://tile.example/api/puzzles/today'));
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(response.headers.get('cdn-cache-control')).toBe('no-store');
+    expect(await response.json()).toEqual({ error: 'Today’s puzzle is temporarily unavailable.' });
+    expect(reportFailure).not.toHaveBeenCalled();
+  });
+
   it.each(['invalid_release', 'wrong_date'] as const)('identifies current-release %s failures', async (reason) => {
     const reportFailure = vi.fn();
     const api = createDailyPuzzleApi({

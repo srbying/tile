@@ -15,6 +15,60 @@ test('public monitor verifies a fresh playable game using one current-release re
   await expect(page.getByText('12 swaps left', { exact: true })).toBeVisible();
 });
 
+for (const rendering of ['frozen', 'uniform', 'extra_tile', 'duplicate_first_pair'] as const) {
+  test(`public monitor checks tile descriptions against ${rendering} rendering`, async ({ page, baseURL }) => {
+    // Inject accessible-rendering faults at the DOM boundary, leaving game rules intact.
+    await page.addInitScript((rendering) => {
+      let labels: string[] | undefined;
+      const observer = new MutationObserver(() => {
+        const buttons = [...document.querySelectorAll('fieldset[aria-label="Your tiles"] button')];
+        if (buttons.length !== 36) return;
+        const current = buttons.map((button) => button.getAttribute('aria-label') ?? '');
+        if (!labels) {
+          labels = current;
+          if (rendering === 'uniform' || rendering === 'duplicate_first_pair') {
+            observer.disconnect();
+            buttons.forEach((button, position) => {
+              if (rendering === 'uniform' || position === 1) {
+                button.setAttribute('aria-label', current[position]!.split(': ')[0] + ': ' + current[0]!.split(': ').slice(1).join(': '));
+              }
+            });
+          }
+          return;
+        }
+        if (current.every((label, position) => label === labels![position])) return;
+        if (rendering === 'frozen') {
+          buttons.forEach((button, position) => {
+            if (current[position] !== labels![position]) button.setAttribute('aria-label', labels![position]!);
+          });
+        } else {
+          observer.disconnect();
+          buttons[35]!.setAttribute('aria-label', 'Row 6, column 6: changed unrelated tile');
+        }
+      });
+      observer.observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['aria-label'] });
+      document.addEventListener('click', (event) => {
+        if (event.target instanceof Element) {
+          event.target.closest('button[data-position]')?.setAttribute('data-monitor-clicked', 'true');
+        }
+      }, true);
+    }, rendering);
+
+    const result = await checkPublicGame(page, baseURL!);
+
+    if (rendering === 'duplicate_first_pair') {
+      expect(result).toMatchObject({ ok: true });
+      const clicked = await page.locator('[data-monitor-clicked]').evaluateAll((buttons) =>
+        buttons.map((button) => Number(button.getAttribute('data-position'))));
+      expect(clicked).toHaveLength(2);
+      expect(clicked[0]).toBe(0);
+      expect(clicked[1]).toBeGreaterThan(1);
+    } else {
+      expect(result).toMatchObject({ ok: false, reason: 'interaction_failed' });
+    }
+  });
+}
+
 test('public monitor detects a controlled release failure without changing the server', async ({ page, baseURL }) => {
   await page.route('**/api/puzzles/today', (route) => route.fulfill({ status: 503, body: 'private-body-sentinel' }));
   const result = await checkPublicGame(page, baseURL!);
@@ -59,6 +113,27 @@ test('public monitor rejects browser runtime errors without exposing their conte
   const result = await checkPublicGame(page, baseURL!);
   expect(result).toMatchObject({ ok: false, reason: 'runtime_error' });
   expect(JSON.stringify(result)).not.toContain('sentinel');
+});
+
+for (const releaseRequest of [false, true]) {
+  test(`public monitor prioritizes an inline boot error before release delivery (request=${releaseRequest})`, async ({ page, baseURL }) => {
+    await page.route(baseURL! + '/', (route) => route.fulfill({
+      status: 200, contentType: 'text/html',
+      body: '<!doctype html><script>throw new Error("private-inline-sentinel")</script>'
+        + (releaseRequest ? '<script>fetch("/api/puzzles/today").then(response => response.text())</script>' : ''),
+    }));
+    await page.route('**/api/puzzles/today', (route) => route.fulfill({ status: 503, body: 'unavailable' }));
+
+    const result = await checkPublicGame(page, baseURL!);
+
+    expect(result).toMatchObject({ ok: false, reason: 'runtime_error' });
+    expect(JSON.stringify(result)).not.toContain('sentinel');
+  });
+}
+
+test('public monitor preserves the timeout reason when no runtime error occurs', async ({ page, baseURL }) => {
+  await page.route(baseURL! + '/', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><h1>Unavailable</h1>' }));
+  expect(await checkPublicGame(page, baseURL!)).toMatchObject({ ok: false, reason: 'release_timeout' });
 });
 
 for (const [at, date] of [

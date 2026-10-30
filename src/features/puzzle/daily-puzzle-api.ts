@@ -74,12 +74,16 @@ export function createDailyPuzzleApi(dependencies: DailyPuzzleApiDependencies = 
         }
         throw new Error('Current release date changed during generation.');
       } catch {
-        const failedAt = now();
-        reportDailyPuzzleFailure({
-          operation: 'today', reason, timestamp: failedAt.toISOString(),
-          releaseDate: getNewYorkPuzzleDate(failedAt), status: 503,
-          ...(puzzleId ? { puzzleId } : {}),
-        }, started, dependencies.reportFailure);
+        try {
+          const failedAt = now();
+          reportDailyPuzzleFailure({
+            operation: 'today', reason, timestamp: failedAt.toISOString(),
+            releaseDate: getNewYorkPuzzleDate(failedAt), status: 503,
+            ...(puzzleId ? { puzzleId } : {}),
+          }, started, dependencies.reportFailure);
+        } catch {
+          // Diagnostic failures must not prevent the unavailable response.
+        }
         return Response.json(
           { error: 'Today’s puzzle is temporarily unavailable.' },
           { status: 503, headers: noStoreHeaders },
