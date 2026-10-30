@@ -1,0 +1,31 @@
+{
+  "days": 30,
+  "cold": {
+    "requests": 10,
+    "transferBytes": 199812,
+    "compressedBodyBytes": 189595
+  },
+  "returning": {
+    "requests": 3,
+    "transferBytes": 3697,
+    "compressedBodyBytes": 739
+  },
+  "monitorRuns": 120,
+  "monitorRequests": 5,
+  "monitorTransferBytes": 194759,
+  "warmCpuMs": 7.75436,
+  "coldCpuMs": 236.623,
+  "warmWallMs": 7.142120000000001,
+  "coldWallMs": 206.928,
+  "allocatedMemoryGb": 2,
+  "originBytesPerInvocation": 9998,
+  "minimumOriginInvocations": 30,
+  "limits": {
+    "cdnRequests": 1000000,
+    "fastDataBytes": 100000000000,
+    "fastOriginBytes": 10000000000,
+    "invocations": 1000000,
+    "cpuHours": 4,
+    "memoryGbHours": 360
+  }
+}

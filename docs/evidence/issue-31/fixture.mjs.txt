@@ -1,0 +1,39 @@
+import { createServer } from 'node:http';
+import { gzipSync } from 'node:zlib';
+import { mkdtemp,writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import assert from 'node:assert/strict';
+import { openCapture } from './capture.mjs';
+const compressed=gzipSync('x'.repeat(1000));
+const server=createServer((req,res)=>{
+  if(req.url==='/gzip') { res.writeHead(200,{'Content-Encoding':'gzip','Content-Length':compressed.length,'Cache-Control':'public, max-age=3600'}); res.end(compressed); }
+  else if(req.url==='/failure') {res.writeHead(503,{'Cache-Control':'no-store'});res.end('controlled failure');}
+  else if(req.url==='/sw.js') {res.writeHead(200,{'Content-Type':'application/javascript'});res.end("self.addEventListener('install', e=>{self.skipWaiting()}); self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));self.addEventListener('fetch',e=>{if(new URL(e.request.url).pathname==='/through-worker')e.respondWith(fetch('/failure'));});");}
+  else {res.writeHead(200,{'Content-Type':'text/html'});res.end('<!doctype html><title>fixture</title>');}
+});
+await new Promise(resolve=>server.listen(4184,'127.0.0.1',resolve));
+try {
+ const capture=await openCapture(await mkdtemp(join(tmpdir(),'tile31-fixture-')));
+ const page=capture.context.pages()[0];
+ await page.goto('http://127.0.0.1:4184/');
+ await page.evaluate(async()=>{
+  await fetch('/gzip').then(r=>r.text()); await fetch('/gzip').then(r=>r.text());
+  await navigator.serviceWorker.register('/sw.js'); await navigator.serviceWorker.ready;
+  if(!navigator.serviceWorker.controller)await new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true}));
+  await fetch('/through-worker').then(r=>r.text());
+ });
+ const {cdp:records,networkLog}=await capture.finish();
+ const gzip=records.filter(r=>r.url.endsWith('/gzip'));
+ assert.equal(gzip.length,2); assert.equal(gzip.filter(r=>r.network).length,1);
+ assert.equal(gzip.find(r=>r.network).encodedBodyBytes,compressed.length);
+ assert.equal(records.filter(r=>r.url.endsWith('/failure')&&r.network&&r.status===503).length,1);
+ assert.equal(records.filter(r=>r.url.endsWith('/through-worker')&&!r.network&&r.serviceWorker).length,1);
+ assert.equal(networkLog.filter(r=>r.url.endsWith('/gzip')&&r.network).length,1);
+ assert.equal(networkLog.find(r=>r.url.endsWith('/gzip')&&r.network).encodedBodyBytes,29);
+ assert.equal(networkLog.filter(r=>r.workerScript&&r.network).length,1);
+ assert.equal(networkLog.filter(r=>r.url.endsWith('/failure')&&r.network&&r.status===503).length,1);
+ const result={timestamp:new Date().toISOString(),checks:{knownDecodedBytes:1000,knownGzipBytes:compressed.length,gzipNetworkRequests:1,gzipCacheResponses:1,controlled503NetworkRequests:1,workerProxyCountedOnce:true,workerScriptCounted:true},records,networkLog};
+ await writeFile('/private/tmp/tile31-capture/validation.json',JSON.stringify(result,null,2)+'\n');
+ console.log(JSON.stringify(result.checks));
+} finally {server.closeAllConnections();server.close();}

@@ -1,0 +1,214 @@
+{
+  "timestamp": "2026-10-30T18:55:50.840Z",
+  "checks": {
+    "knownDecodedBytes": 1000,
+    "knownGzipBytes": 29,
+    "gzipNetworkRequests": 1,
+    "gzipCacheResponses": 1,
+    "controlled503NetworkRequests": 1,
+    "workerProxyCountedOnce": true,
+    "workerScriptCounted": true
+  },
+  "records": [
+    {
+      "url": "http://127.0.0.1:4184/",
+      "method": "GET",
+      "owner": "page",
+      "encodedBodyBytes": 0,
+      "cacheEvent": false,
+      "networkStatus": 200,
+      "status": 200,
+      "protocol": "http/1.1",
+      "headers": {
+        "content-type": "text/html",
+        "date": "Fri, 30 Oct 2026 18:55:50 GMT"
+      },
+      "diskCache": false,
+      "serviceWorker": false,
+      "prefetchCache": false,
+      "responseHeaderBytes": 156,
+      "encodedResponseBytes": 204,
+      "durationMs": 9.158000000752509,
+      "finished": true,
+      "network": true,
+      "requestBytesEstimate": 668
+    },
+    {
+      "url": "http://127.0.0.1:4184/gzip",
+      "method": "GET",
+      "owner": "page",
+      "encodedBodyBytes": 29,
+      "cacheEvent": false,
+      "networkStatus": 200,
+      "status": 200,
+      "protocol": "http/1.1",
+      "headers": {
+        "cache-control": "public, max-age=3600",
+        "content-length": "29",
+        "content-encoding": "gzip",
+        "date": "Fri, 30 Oct 2026 18:55:50 GMT"
+      },
+      "diskCache": false,
+      "serviceWorker": false,
+      "prefetchCache": false,
+      "responseHeaderBytes": 184,
+      "encodedResponseBytes": 213,
+      "durationMs": 1.7179999267682433,
+      "finished": true,
+      "network": true,
+      "requestBytesEstimate": 523
+    },
+    {
+      "url": "http://127.0.0.1:4184/gzip",
+      "method": "GET",
+      "owner": "page",
+      "encodedBodyBytes": 0,
+      "cacheEvent": false,
+      "status": 200,
+      "protocol": "http/1.1",
+      "headers": {
+        "cache-control": "public, max-age=3600",
+        "content-length": "29",
+        "content-encoding": "gzip",
+        "date": "Fri, 30 Oct 2026 18:55:50 GMT"
+      },
+      "diskCache": true,
+      "serviceWorker": false,
+      "prefetchCache": false,
+      "responseHeaderBytes": 0,
+      "encodedResponseBytes": 0,
+      "durationMs": 0.661000027321279,
+      "finished": true,
+      "network": false,
+      "requestBytesEstimate": 0
+    },
+    {
+      "url": "http://127.0.0.1:4184/through-worker",
+      "method": "GET",
+      "owner": "page",
+      "encodedBodyBytes": 0,
+      "cacheEvent": false,
+      "status": 503,
+      "protocol": "http/1.1",
+      "headers": {
+        "cache-control": "no-store",
+        "date": "Fri, 30 Oct 2026 18:55:50 GMT"
+      },
+      "diskCache": false,
+      "serviceWorker": true,
+      "prefetchCache": false,
+      "responseHeaderBytes": -1,
+      "encodedResponseBytes": 0,
+      "durationMs": 6.591000012122095,
+      "finished": true,
+      "network": false,
+      "requestBytesEstimate": 0
+    },
+    {
+      "url": "http://127.0.0.1:4184/failure",
+      "method": "GET",
+      "owner": "service_worker",
+      "encodedBodyBytes": 29,
+      "cacheEvent": false,
+      "networkStatus": 503,
+      "status": 503,
+      "protocol": "http/1.1",
+      "headers": {
+        "cache-control": "no-store",
+        "date": "Fri, 30 Oct 2026 18:55:50 GMT"
+      },
+      "diskCache": false,
+      "serviceWorker": false,
+      "prefetchCache": false,
+      "responseHeaderBytes": 173,
+      "encodedResponseBytes": 202,
+      "durationMs": 0.821000081487,
+      "finished": true,
+      "network": true,
+      "requestBytesEstimate": 227
+    }
+  ],
+  "networkLog": [
+    {
+      "url": "http://127.0.0.1:4184/",
+      "method": "GET",
+      "sent": 1,
+      "requestHeadersBytesEstimate": 669,
+      "responseHeadersBytesEstimate": 156,
+      "rawBodyBytes": 0,
+      "decodedBodyBytes": 37,
+      "workerScript": false,
+      "status": 200,
+      "headers": {
+        "content-type": "text/html",
+        "date": "Fri, 30 Oct 2026 18:55:50 GMT"
+      },
+      "network": true,
+      "encodedBodyBytes": 37
+    },
+    {
+      "url": "http://127.0.0.1:4184/gzip",
+      "method": "GET",
+      "sent": 1,
+      "requestHeadersBytesEstimate": 528,
+      "responseHeadersBytesEstimate": 184,
+      "rawBodyBytes": 29,
+      "decodedBodyBytes": 1000,
+      "workerScript": false,
+      "status": 200,
+      "headers": {
+        "content-encoding": "gzip",
+        "content-length": "29",
+        "cache-control": "public, max-age=3600",
+        "date": "Fri, 30 Oct 2026 18:55:50 GMT"
+      },
+      "network": true,
+      "encodedBodyBytes": 29
+    },
+    {
+      "url": "http://127.0.0.1:4184/gzip",
+      "method": "GET",
+      "sent": 0,
+      "requestHeadersBytesEstimate": 0,
+      "responseHeadersBytesEstimate": 0,
+      "rawBodyBytes": 29,
+      "decodedBodyBytes": 1000,
+      "network": false,
+      "encodedBodyBytes": 0
+    },
+    {
+      "url": "http://127.0.0.1:4184/sw.js",
+      "method": "GET",
+      "sent": 1,
+      "requestHeadersBytesEstimate": 466,
+      "responseHeadersBytesEstimate": 169,
+      "rawBodyBytes": 0,
+      "decodedBodyBytes": 255,
+      "workerScript": true,
+      "status": 200,
+      "headers": {
+        "content-type": "application/javascript",
+        "date": "Fri, 30 Oct 2026 18:55:50 GMT"
+      },
+      "network": true,
+      "encodedBodyBytes": 255
+    },
+    {
+      "url": "http://127.0.0.1:4184/failure",
+      "method": "GET",
+      "sent": 1,
+      "requestHeadersBytesEstimate": 410,
+      "responseHeadersBytesEstimate": 173,
+      "rawBodyBytes": 0,
+      "decodedBodyBytes": 18,
+      "workerScript": false,
+      "status": 503,
+      "headers": {
+        "cache-control": "no-store",
+        "date": "Fri, 30 Oct 2026 18:55:50 GMT"
+      },
+      "network": true,
+      "encodedBodyBytes": 18
+    }
+  ]
+}

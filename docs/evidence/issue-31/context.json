@@ -1,0 +1,35 @@
+{
+  "observedOn": "2026-10-30",
+  "source": "Connected Vercel get_git_deployment_context and get_deployment read-only responses",
+  "teamSlug": "srbyington-6585s-projects",
+  "plan": "hobby",
+  "linkedGitProjects": 4,
+  "project": "tile",
+  "publicUrl": "https://tile-livid.vercel.app/",
+  "productionDeployment": "dpl_3CsYEh2CNqWAVjwg6g1ijTBFsHDh",
+  "productionFunctionRegion": "iad1",
+  "productionCommit": "513116e859a41d85beb92ab32c519ef815a2265b",
+  "remainingSharedUsage": "unverified",
+  "billingAndNotificationSettings": "unverified",
+  "functionAllocationAndFluidSetting": "not exposed by returned metadata; model assumes current Hobby Fluid defaults",
+  "publicVisits": {
+    "excludedDevToolsOnlyJourneys": 6,
+    "reportedNetLogJourneys": 6,
+    "parallel": false,
+    "automaticRetries": false
+  },
+  "loadConditions": [
+    "Loopback only; client and production-preview server in separate processes on same Apple M4 Pro host",
+    "No public browser journey batch or application test suite ran during load exercise",
+    "A brief browser collection-control fixture overlapped ramp; desktop host was otherwise not isolated from background activity",
+    "Node 26.13.0 locally; Vercel project configured for Node 24.x; timings are not platform billing measurements"
+  ],
+  "verification": {
+    "lint": "passed",
+    "buildAndTypecheck": "passed",
+    "unitTestsPassed": 285,
+    "focusedBrowserTestsPassed": 126,
+    "focusedBrowserTestsSkipped": 6,
+    "browserCommand": "npm run test:e2e -- e2e/daily-puzzle.spec.ts e2e/puzzle.spec.ts"
+  }
+}
