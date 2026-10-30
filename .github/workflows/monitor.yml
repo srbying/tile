@@ -1,0 +1,36 @@
+name: Check public daily release
+
+on:
+  schedule:
+    - cron: '17 0,6,12,18 * * *'
+  workflow_dispatch:
+    inputs:
+      simulate_failure:
+        description: 'Intercept the monitor browser release request with 503; expect a failed run and failure email.'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-daily-release-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TILE_MONITOR_URL: https://tile-livid.vercel.app/
+      TILE_MONITOR_SIMULATE_FAILURE: ${{ github.event_name == 'workflow_dispatch' && inputs.simulate_failure || false }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm run monitor

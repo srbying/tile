@@ -2,11 +2,14 @@ import { dailyPuzzleFromId, getDailyPuzzleForNow, getNextNewYorkMidnight, getNew
 import { parseDailyPuzzleRelease } from './daily-puzzle-release-cache.js';
 import type { DailyPuzzleRelease } from './puzzle.types.js';
 import { parseDailyPuzzleId } from './daily-puzzle-identity.js';
+import { reportDailyPuzzleFailure } from './daily-puzzle-diagnostics.js';
+import type { DailyPuzzleFailure, DailyPuzzleFailureReporter } from './daily-puzzle-diagnostics.js';
 
 export interface DailyPuzzleApiDependencies {
   readonly now?: () => Date;
   readonly getToday?: (now: Date) => DailyPuzzleRelease;
   readonly getById?: (puzzleId: string) => DailyPuzzleRelease | null;
+  readonly reportFailure?: DailyPuzzleFailureReporter;
 }
 
 const noStoreHeaders = { 'Cache-Control': 'no-store', 'CDN-Cache-Control': 'no-store' };
@@ -40,13 +43,22 @@ export function createDailyPuzzleApi(dependencies: DailyPuzzleApiDependencies = 
       if (request.method !== 'GET') return methodNotAllowed();
       const redirect = canonicalRedirect(request, '/api/puzzles/today');
       if (redirect) return redirect;
+      const started = performance.now();
+      let reason: DailyPuzzleFailure['reason'] = 'generation';
+      let puzzleId: string | undefined;
       try {
         // A cold generation can straddle midnight. Retry once for the new date.
         for (let attempt = 0; attempt < 2; attempt++) {
-          const release = parseDailyPuzzleRelease(getToday(now()));
+          reason = 'generation';
+          const provided = getToday(now());
+          reason = 'invalid_release';
+          const release = parseDailyPuzzleRelease(provided);
           if (!release) throw new Error('Invalid current release.');
           const responseAt = now();
+          reason = 'wrong_date';
           if (release.releaseDate !== getNewYorkPuzzleDate(responseAt)) continue;
+          puzzleId = release.puzzleId;
+          reason = 'serialization';
           const expires = getNextNewYorkMidnight(responseAt);
           const seconds = Math.floor((expires.getTime() - responseAt.getTime()) / 1000);
           return Response.json(release, {
@@ -62,6 +74,16 @@ export function createDailyPuzzleApi(dependencies: DailyPuzzleApiDependencies = 
         }
         throw new Error('Current release date changed during generation.');
       } catch {
+        try {
+          const failedAt = now();
+          reportDailyPuzzleFailure({
+            operation: 'today', reason, timestamp: failedAt.toISOString(),
+            releaseDate: getNewYorkPuzzleDate(failedAt), status: 503,
+            ...(puzzleId ? { puzzleId } : {}),
+          }, started, dependencies.reportFailure);
+        } catch {
+          // Diagnostic failures must not prevent the unavailable response.
+        }
         return Response.json(
           { error: 'Today’s puzzle is temporarily unavailable.' },
           { status: 503, headers: noStoreHeaders },
@@ -77,18 +99,26 @@ export function createDailyPuzzleApi(dependencies: DailyPuzzleApiDependencies = 
       }
       const redirect = canonicalRedirect(request, `/api/puzzles/${puzzleId}`);
       if (redirect) return redirect;
+      const started = performance.now();
+      let reason: DailyPuzzleFailure['reason'] = 'generation';
       try {
         const provided = getById(puzzleId);
         if (!provided) {
           return Response.json({ error: 'Puzzle not found.' }, { status: 404, headers: noStoreHeaders });
         }
+        reason = 'invalid_release';
         const release = parseDailyPuzzleRelease(provided);
         if (!release || release.puzzleId !== puzzleId) throw new Error('Invalid historical release.');
+        reason = 'serialization';
         return Response.json(release, { headers: {
           'Cache-Control': 'public, max-age=31536000, immutable',
           'CDN-Cache-Control': 'public, s-maxage=31536000, immutable',
         } });
       } catch {
+        reportDailyPuzzleFailure({
+          operation: 'by_id', reason, timestamp: now().toISOString(),
+          puzzleId, releaseDate: identity.releaseDate, status: 503,
+        }, started, dependencies.reportFailure);
         return Response.json(
           { error: 'Puzzle is temporarily unavailable.' },
           { status: 503, headers: noStoreHeaders },

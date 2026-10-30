@@ -65,6 +65,8 @@ Puzzle API aliases redirect to canonical URLs before generation. See [request pr
 
 ## Verification scope
 
+Production monitoring runs every six hours through GitHub Actions, with native failure email after owner setup. See the [operations runbook](docs/operations.md) for notification drills, diagnostics, free-tier limits, usage checks, and rollback.
+
 Unit tests cover immutable transitions, swap accounting, visual equivalence, progress validation and restore, exact visible swap counts, candidate validation, target symmetry, deterministic generation, New York date boundaries, saved-ID lookup, hint feedback, and mode budgets. Browser tests cover offline authoring import/edit/export, three-tier previews, generated-puzzle gameplay, resume by saved puzzle ID, keyboard and touch play, announcements, focus, and reload behavior.
 
 The browser matrix includes desktop Chromium/WebKit and emulated phones at 375px/320px. Layout tests also check 1280px, at least 44px square playable cells, no horizontal overflow, and reduced-motion settings. Feedback uses outlines, symbols, and text as well as color; SVG art is paired with accessible position/attribute descriptions.

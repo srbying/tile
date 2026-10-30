@@ -12,7 +12,8 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "monitor": "playwright test --config monitoring/playwright.config.ts"
   },
   "dependencies": {
     "react": "^19.3.0",

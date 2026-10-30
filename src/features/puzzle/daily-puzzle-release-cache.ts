@@ -2,6 +2,8 @@ import { getNewYorkPuzzleDate } from './daily-puzzle-generator.js';
 import { parsePuzzleCandidate, validatePuzzleCandidate } from './puzzle-candidate.js';
 import type { DailyPuzzleRelease, PuzzleCandidate } from './puzzle.types.js';
 import { parseDailyPuzzleId } from './daily-puzzle-identity.js';
+import { reportDailyPuzzleFailure } from './daily-puzzle-diagnostics.js';
+import type { DailyPuzzleFailure, DailyPuzzleFailureReporter } from './daily-puzzle-diagnostics.js';
 
 export interface DailyPuzzleReleaseCache {
   read(): Promise<unknown | null>;
@@ -28,6 +30,7 @@ interface DailyPuzzleReleaseLoaderDependencies {
   readonly now?: () => Date;
   readonly fetcher: (input: string, init: RequestInit) => Promise<Response>;
   readonly cache?: DailyPuzzleReleaseCache;
+  readonly reportFailure?: DailyPuzzleFailureReporter;
 }
 
 const releaseCacheName = 'tile-current-daily-puzzle-v1';
@@ -53,7 +56,7 @@ async function withDeadline<T>(
     };
     signal.addEventListener('abort', cancel, { once: true });
     timeout = setTimeout(() => {
-      reject(new Error('Daily puzzle request timed out.'));
+      reject(new PuzzleDeadlineError('Daily puzzle request timed out.'));
       controller.abort();
     }, milliseconds);
   });
@@ -135,19 +138,30 @@ export function createDailyPuzzleReleaseLoader(dependencies: DailyPuzzleReleaseL
   };
 
   return async (signal: AbortSignal): Promise<CurrentPuzzleLoad | null> => {
+    const started = performance.now();
+    let status: number | undefined;
+    let reason: DailyPuzzleFailure['reason'] = 'network';
+    let puzzleId: string | undefined;
     let release: DailyPuzzleRelease | null;
     try {
       release = await withDeadline(
         async (requestSignal) => {
           const response = await dependencies.fetcher('/api/puzzles/today', { cache: 'default', signal: requestSignal });
-          if (response.status === 404) return null;
+          status = response.status;
+          reason = 'http';
+          if (response.status === 404) throw new PuzzleNotFoundError();
           if (response.status === 429 || response.status >= 500) throw new Error('Daily puzzle is unavailable.');
           if (!response.ok) throw new PuzzleRequestError('Puzzle request failed.');
 
+          reason = 'invalid_json';
           const payload: unknown = await response.json();
+          reason = 'invalid_release';
           const parsed = parseDailyPuzzleRelease(payload);
+          if (!parsed) throw new Error('Invalid daily puzzle release.');
+          puzzleId = parsed.puzzleId;
+          reason = 'wrong_date';
           // Check at receipt time: an in-flight request may cross midnight.
-          if (!parsed || parsed.releaseDate !== getNewYorkPuzzleDate(now())) {
+          if (parsed.releaseDate !== getNewYorkPuzzleDate(now())) {
             throw new Error('Invalid daily puzzle release.');
           }
           return parsed;
@@ -156,7 +170,16 @@ export function createDailyPuzzleReleaseLoader(dependencies: DailyPuzzleReleaseL
         requestTimeoutMilliseconds,
       );
     } catch (error) {
-      if (signal.aborted || error instanceof PuzzleRequestError) throw error;
+      if (signal.aborted) throw error;
+      const failedAt = now();
+      reportDailyPuzzleFailure({
+        operation: 'load_today', reason: error instanceof PuzzleDeadlineError ? 'timeout' : reason,
+        timestamp: failedAt.toISOString(),
+        releaseDate: getNewYorkPuzzleDate(failedAt), ...(status === undefined ? {} : { status }),
+        ...(puzzleId ? { puzzleId } : {}),
+      }, started, dependencies.reportFailure);
+      if (error instanceof PuzzleNotFoundError) return null;
+      if (error instanceof PuzzleRequestError) throw error;
       const cached = await withDeadline(readCachedRelease, signal, cacheTimeoutMilliseconds).catch(() => null);
       signal.throwIfAborted();
       if (cached) return { release: cached, source: 'cache' };
@@ -176,3 +199,5 @@ export function createDailyPuzzleReleaseLoader(dependencies: DailyPuzzleReleaseL
 
 // Other HTTP client errors are not eligible for a cached fallback.
 class PuzzleRequestError extends Error {}
+class PuzzleDeadlineError extends Error {}
+class PuzzleNotFoundError extends Error {}
