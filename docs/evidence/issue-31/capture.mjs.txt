@@ -1,0 +1,142 @@
+import { chromium } from '/private/tmp/tile-issue-31/node_modules/playwright/index.mjs';
+import { readFile, writeFile, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import assert from 'node:assert/strict';
+
+const allowedHeaders = new Set(['content-type','content-length','content-encoding','cache-control','cdn-cache-control','age','date','expires','etag','vary','x-vercel-cache','x-vercel-id']);
+export function summarizeNetLog(log) {
+  const types=Object.fromEntries(Object.entries(log.constants.logEventTypes).map(([k,v])=>[v,k]));
+  const requests=new Map();
+  for(const event of log.events) {
+    const type=types[event.type],p=event.params??{},key=event.source.id;
+    if(type==='URL_REQUEST_START_JOB'&&event.phase===1&&/^https?:/.test(p.url)) {
+      const url=new URL(p.url);
+      requests.set(key,{url:url.origin+url.pathname,method:p.method,sent:0,requestHeadersBytesEstimate:0,responseHeadersBytesEstimate:0,rawBodyBytes:0,decodedBodyBytes:0,started:Number(event.time)});
+    }
+    const r=requests.get(key);if(!r)continue;
+    if(/HTTP_TRANSACTION_(HTTP2_|QUIC_)?SEND_REQUEST_HEADERS/.test(type)) {
+      r.sent++;r.requestHeadersBytesEstimate+=Buffer.byteLength((p.line??'')+(p.headers??[]).join('\r\n')+'\r\n\r\n')+Buffer.byteLength(r.url);
+      r.workerScript=(p.headers??[]).some(h=>/^service-worker: script$/i.test(h));
+    }
+    if(type==='HTTP_TRANSACTION_READ_RESPONSE_HEADERS') {
+      r.status=Number(p.headers?.[0]?.split(' ')[1]);
+      r.responseHeadersBytesEstimate+=Buffer.byteLength(p.headers.join('\r\n')+'\r\n\r\n');
+      r.headers=Object.fromEntries(p.headers.slice(1).map(h=>{const i=h.indexOf(':');return[h.slice(0,i).toLowerCase(),h.slice(i+1).trim()];}).filter(([k])=>allowedHeaders.has(k)));
+    }
+    if(type==='URL_REQUEST_JOB_BYTES_READ')r.rawBodyBytes+=p.byte_count;
+    if(type==='URL_REQUEST_JOB_FILTERED_BYTES_READ')r.decodedBodyBytes+=p.byte_count;
+  }
+  return [...requests.values()].map(r=>{
+    const {started,...safe}=r;
+    return {...safe,network:r.sent>0,encodedBodyBytes:r.sent>0&&r.status!==304?(r.rawBodyBytes||r.decodedBodyBytes):0};
+  });
+}
+export async function openCapture(profile) {
+  const netlog=join(profile,`netlog-${Date.now()}.json`);
+  const context = await chromium.launchPersistentContext(profile, { headless: true, serviceWorkers: 'allow', viewport: { width: 1280, height: 900 }, args: ['--remote-debugging-port=0',`--log-net-log=${netlog}`] });
+  const port = (await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0];
+  const endpoint = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
+  const ws = new WebSocket(endpoint.webSocketDebuggerUrl);
+  await new Promise((resolve,reject) => { ws.onopen=resolve; ws.onerror=reject; });
+  let id=0;
+  const pending=new Map(), sessions=new Map(), records=new Map();
+  const send=(method,params={},sessionId) => new Promise((resolve,reject) => {
+    const message={id:++id,method,params,...(sessionId?{sessionId}:{})};
+    pending.set(id,{resolve,reject}); ws.send(JSON.stringify(message));
+  });
+  ws.onmessage=async ({data}) => {
+    const event=JSON.parse(data);
+    if(event.id) { const p=pending.get(event.id); pending.delete(event.id); if(p) event.error?p.reject(new Error(JSON.stringify(event.error))):p.resolve(event.result); return; }
+    const {method,params:p,sessionId}=event;
+    if(method==='Target.attachedToTarget') {
+      sessions.set(p.sessionId,p.targetInfo.type);
+      await send('Network.enable',{},p.sessionId);
+      await send('Runtime.runIfWaitingForDebugger',{},p.sessionId);
+      return;
+    }
+    if(!sessionId || !p.requestId) return;
+    const key=sessionId+':'+p.requestId;
+    if(method==='Network.requestWillBeSent') {
+      if(!/^https?:/.test(p.request.url)) return;
+      const url=new URL(p.request.url);
+      records.set(key,{url:url.origin+url.pathname,method:p.request.method,owner:sessions.get(sessionId),requestHeaders:p.request.headers,started:p.timestamp,encodedBodyBytes:0,cacheEvent:false});
+    }
+    const r=records.get(key); if(!r) return;
+    if(method==='Network.requestWillBeSentExtraInfo') r.requestHeaders=p.headers;
+    if(method==='Network.requestServedFromCache') r.cacheEvent=true;
+    if(method==='Network.responseReceived') {
+      r.status=p.response.status; r.protocol=p.response.protocol;
+      r.headers=Object.fromEntries(Object.entries(p.response.headers).map(([k,v])=>[k.toLowerCase(),v]).filter(([k])=>allowedHeaders.has(k)));
+      r.diskCache=!!p.response.fromDiskCache; r.serviceWorker=!!p.response.fromServiceWorker; r.prefetchCache=!!p.response.fromPrefetchCache;
+      r.responseHeaderBytes=p.response.encodedDataLength;
+    }
+    if(method==='Network.responseReceivedExtraInfo') r.networkStatus=p.statusCode;
+    if(method==='Network.dataReceived') r.encodedBodyBytes+=p.encodedDataLength;
+    if(method==='Network.loadingFinished') { r.encodedResponseBytes=p.encodedDataLength; r.durationMs=(p.timestamp-r.started)*1000; r.finished=true; }
+    if(method==='Network.loadingFailed') { r.failure=p.errorText; r.finished=true; }
+  };
+  await send('Target.setAutoAttach',{autoAttach:true,waitForDebuggerOnStart:true,flatten:true,filter:[{type:'page'},{type:'service_worker'},{exclude:true}]});
+  await new Promise(resolve=>setTimeout(resolve,100));
+  return {context,browserVersion:context.browser().version(), async finish() {
+    await new Promise(resolve=>setTimeout(resolve,250));
+    const requests=[...records.values()].map(r=>{
+      const network=!(r.serviceWorker || r.diskCache || r.prefetchCache || r.cacheEvent);
+      const requestBytesEstimate=Buffer.byteLength(`${r.method} ${r.url} HTTP/1.1\r\n`+Object.entries(r.requestHeaders).map(([k,v])=>`${k}: ${v}\r\n`).join('')+'\r\n');
+      const {requestHeaders,started,...safe}=r;
+      return {...safe,network,requestBytesEstimate:network?requestBytesEstimate:0,encodedResponseBytes:network?(r.encodedResponseBytes??0):0,encodedBodyBytes:network?r.encodedBodyBytes:0};
+    });
+    await send('Target.setAutoAttach',{autoAttach:false,waitForDebuggerOnStart:false,flatten:true});
+    ws.close(); await context.close();
+    const log=JSON.parse(await readFile(netlog,'utf8'));
+    await writeFile('/private/tmp/tile31-capture/last-netlog.json',JSON.stringify(log));
+    return {cdp:requests,networkLog:summarizeNetLog(log).filter(r=>r.url.startsWith('https://tile-livid.vercel.app/')||r.url.startsWith('http://127.0.0.1:4184/'))};
+  }};
+}
+
+if(process.argv[2]==='public') {
+  const journeys=[];
+  for(let pair=1;pair<=3;pair++) {
+    const profile=await mkdtemp(join(tmpdir(),'tile31-profile-'));
+    let savedDescriptions, releaseIdentity;
+    for(const kind of ['cold','returning']) {
+      const capture=await openCapture(profile), {context}=capture;
+      const page=context.pages()[0];
+      const started=performance.now(), timestamp=new Date().toISOString();
+      const responsePromise=page.waitForResponse(r=>r.url()==='https://tile-livid.vercel.app/api/puzzles/today' && r.request().method()==='GET');
+      await page.goto('https://tile-livid.vercel.app/',{waitUntil:'domcontentloaded'});
+      const response=await responsePromise;
+      assert.equal(response.status(),200);
+      const release=await response.json();
+      assert.equal(release.puzzleId,release.puzzle.id);
+      assert.equal(release.releaseDate,new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
+      const tiles=page.getByRole('group',{name:'Your tiles'}).getByRole('button');
+      if(kind==='cold') {
+        await page.getByRole('radio',{name:/^Medium\b/}).check();
+        await page.getByRole('button',{name:'Start puzzle',exact:true}).click();
+        await tiles.last().waitFor();
+        assert.equal(await tiles.count(),36);
+        const playableMs=performance.now()-started;
+        const before=await tiles.evaluateAll(bs=>bs.map(b=>b.getAttribute('aria-label')));
+        const position=before.findIndex(d=>d.split(': ').slice(1).join(': ')!==before[0].split(': ').slice(1).join(': '));
+        await tiles.nth(0).click(); await tiles.nth(position).click();
+        await page.getByText('12 swaps left',{exact:true}).waitFor();
+        savedDescriptions=await tiles.evaluateAll(bs=>bs.map(b=>b.getAttribute('aria-label')));
+        releaseIdentity=release.puzzleId;
+        await page.evaluate(async()=>{ await navigator.serviceWorker.ready; if(!navigator.serviceWorker.controller) await new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true})); });
+        await page.waitForTimeout(2000);
+        journeys.push({pair,kind,timestamp,playableMs,releaseDate:release.releaseDate,puzzleId:release.puzzleId,progressVerified:true,observationMs:performance.now()-started,browser:capture.browserVersion,...await capture.finish()});
+      } else {
+        await page.getByText('12 swaps left',{exact:true}).waitFor();
+        await tiles.last().waitFor();
+        assert.deepEqual(await tiles.evaluateAll(bs=>bs.map(b=>b.getAttribute('aria-label'))),savedDescriptions);
+        assert.equal(release.puzzleId,releaseIdentity);
+        const playableMs=performance.now()-started;
+        await page.waitForTimeout(2000);
+        journeys.push({pair,kind,timestamp,playableMs,releaseDate:release.releaseDate,puzzleId:release.puzzleId,progressVerified:true,observationMs:performance.now()-started,browser:capture.browserVersion,...await capture.finish()});
+      }
+      const j=journeys.at(-1);console.log(JSON.stringify({pair,kind,playableMs:j.playableMs,network:j.networkLog.filter(r=>r.network).length}));
+    }
+  }
+  await writeFile('/private/tmp/tile31-capture/browser.json',JSON.stringify(journeys,null,2)+'\n');
+}

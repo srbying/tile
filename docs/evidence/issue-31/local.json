@@ -1,0 +1,250 @@
+{
+  "timestamp": "2026-10-30T18:55:44.796Z",
+  "commit": "513116e859a41d85beb92ab32c519ef815a2265b",
+  "environment": {
+    "os": "Darwin",
+    "release": "25.6.0",
+    "arch": "arm64",
+    "cpus": 12,
+    "cpu": "Apple M4 Pro",
+    "memoryBytes": 25769803776,
+    "node": "v26.13.0",
+    "vite": "8.3.1",
+    "serverProcesses": 1,
+    "clientProcesses": 1,
+    "cdn": false
+  },
+  "target": "http://127.0.0.1:4183/api/puzzles/today",
+  "deadlineMs": 10000,
+  "inFlightCap": 64,
+  "puzzleId": "daily-v3-2026-10-30-0-1",
+  "releaseDate": "2026-10-30",
+  "responseBytes": 7950,
+  "sha256": "e15be00c97f9ce536785c34a08f516e1862e41ee6b0086098ba09092840976cd",
+  "startup": {
+    "ready": true,
+    "startupWallMs": 39.36583300000001,
+    "cpu": {
+      "user": 125657,
+      "system": 33114
+    }
+  },
+  "cold": {
+    "name": "cold",
+    "attempted": 1,
+    "completed": 1,
+    "failures": {
+      "http": 0,
+      "network": 0,
+      "timeout": 0,
+      "payload": 0
+    },
+    "latencyMs": {
+      "p50": 206.928,
+      "p95": 206.928,
+      "p99": 206.928,
+      "max": 206.928
+    },
+    "serverCpuMs": 236.623,
+    "serverRssBytesBefore": 131743744,
+    "serverRssBytesAfter": 199802880,
+    "serverMaxRssKiB": 195120
+  },
+  "warm": {
+    "name": "warm",
+    "attempted": 50,
+    "completed": 50,
+    "failures": {
+      "http": 0,
+      "network": 0,
+      "timeout": 0,
+      "payload": 0
+    },
+    "latencyMs": {
+      "p50": 7.029290999999944,
+      "p95": 7.808000000000106,
+      "p99": 9.06879099999992,
+      "max": 9.06879099999992
+    },
+    "serverCpuMs": 387.718,
+    "serverRssBytesBefore": 199524352,
+    "serverRssBytesAfter": 200097792,
+    "serverMaxRssKiB": 195408
+  },
+  "stages": [
+    {
+      "name": "ramp-5",
+      "rate": 5,
+      "durationSeconds": 20,
+      "elapsedSeconds": 20.000520375,
+      "offered": 100,
+      "unsent": 0,
+      "maxInFlight": 1,
+      "completedRps": 4.999869909634788,
+      "dispatchLagP99Ms": 1.6614169999998012,
+      "attempted": 100,
+      "completed": 100,
+      "failures": {
+        "http": 0,
+        "network": 0,
+        "timeout": 0,
+        "payload": 0
+      },
+      "latencyMs": {
+        "p50": 15.19787499999984,
+        "p95": 20.558249999998225,
+        "p99": 22.126374999999825,
+        "max": 22.18091600000116
+      },
+      "serverCpuMs": 1507.188,
+      "serverRssBytesBefore": 200097792,
+      "serverRssBytesAfter": 171343872,
+      "serverMaxRssKiB": 195552
+    },
+    {
+      "name": "ramp-25",
+      "rate": 25,
+      "durationSeconds": 20,
+      "elapsedSeconds": 20.000726708999995,
+      "offered": 500,
+      "unsent": 0,
+      "maxInFlight": 1,
+      "completedRps": 24.99909164675543,
+      "dispatchLagP99Ms": 1.6835839999985183,
+      "attempted": 500,
+      "completed": 500,
+      "failures": {
+        "http": 0,
+        "network": 0,
+        "timeout": 0,
+        "payload": 0
+      },
+      "latencyMs": {
+        "p50": 10.489833999999973,
+        "p95": 11.696082999998907,
+        "p99": 12.252707999999984,
+        "max": 15.625125000005937
+      },
+      "serverCpuMs": 5340.742,
+      "serverRssBytesBefore": 171343872,
+      "serverRssBytesAfter": 192200704,
+      "serverMaxRssKiB": 195552
+    },
+    {
+      "name": "ramp-50",
+      "rate": 50,
+      "durationSeconds": 20,
+      "elapsedSeconds": 20.000515415999995,
+      "offered": 1000,
+      "unsent": 0,
+      "maxInFlight": 1,
+      "completedRps": 49.99871149320586,
+      "dispatchLagP99Ms": 1.5108330000002752,
+      "attempted": 1000,
+      "completed": 1000,
+      "failures": {
+        "http": 0,
+        "network": 0,
+        "timeout": 0,
+        "payload": 0
+      },
+      "latencyMs": {
+        "p50": 8.413541999994777,
+        "p95": 9.204291000001831,
+        "p99": 9.788000000000466,
+        "max": 17.80245900000591
+      },
+      "serverCpuMs": 8467.719,
+      "serverRssBytesBefore": 192249856,
+      "serverRssBytesAfter": 205389824,
+      "serverMaxRssKiB": 200576
+    },
+    {
+      "name": "burst",
+      "rate": 100,
+      "durationSeconds": 10,
+      "elapsedSeconds": 9.999850165999996,
+      "offered": 1000,
+      "unsent": 0,
+      "maxInFlight": 2,
+      "completedRps": 100.0014983624506,
+      "dispatchLagP99Ms": 1.1668750000098953,
+      "attempted": 1000,
+      "completed": 1000,
+      "failures": {
+        "http": 0,
+        "network": 0,
+        "timeout": 0,
+        "payload": 0
+      },
+      "latencyMs": {
+        "p50": 6.8903750000026776,
+        "p95": 7.8542080000042915,
+        "p99": 10.172083000012208,
+        "max": 17.68279099999927
+      },
+      "serverCpuMs": 6859.733,
+      "serverRssBytesBefore": 205389824,
+      "serverRssBytesAfter": 180994048,
+      "serverMaxRssKiB": 208704
+    },
+    {
+      "name": "sustained",
+      "rate": 25,
+      "durationSeconds": 60,
+      "elapsedSeconds": 60.00186179199999,
+      "offered": 1500,
+      "unsent": 0,
+      "maxInFlight": 1,
+      "completedRps": 24.999224277403904,
+      "dispatchLagP99Ms": 1.8247499999997672,
+      "attempted": 1500,
+      "completed": 1500,
+      "failures": {
+        "http": 0,
+        "network": 0,
+        "timeout": 0,
+        "payload": 0
+      },
+      "latencyMs": {
+        "p50": 10.092583999998169,
+        "p95": 12.21866699999373,
+        "p99": 15.444208999993862,
+        "max": 27.89991700000246
+      },
+      "serverCpuMs": 14477.627,
+      "serverRssBytesBefore": 180994048,
+      "serverRssBytesAfter": 174227456,
+      "serverMaxRssKiB": 208704
+    },
+    {
+      "name": "recovery",
+      "rate": 5,
+      "durationSeconds": 20,
+      "elapsedSeconds": 20.000715833000008,
+      "offered": 100,
+      "unsent": 0,
+      "maxInFlight": 1,
+      "completedRps": 4.999821048154979,
+      "dispatchLagP99Ms": 1.1511250000039581,
+      "attempted": 100,
+      "completed": 100,
+      "failures": {
+        "http": 0,
+        "network": 0,
+        "timeout": 0,
+        "payload": 0
+      },
+      "latencyMs": {
+        "p50": 13.569874999986496,
+        "p95": 16.041333000001032,
+        "p99": 17.330374999990454,
+        "max": 17.778707999998005
+      },
+      "serverCpuMs": 1280.197,
+      "serverRssBytesBefore": 174227456,
+      "serverRssBytesAfter": 171327488,
+      "serverMaxRssKiB": 208704
+    }
+  ]
+}

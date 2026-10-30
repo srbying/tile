@@ -3,6 +3,12 @@
 Response owner: **Steven Byington (`@srbying`)**. Public game: <https://tile-livid.vercel.app/>.
 Vercel project: `tile`, team `srbyington-6585s-projects`.
 
+See [traffic, free allowances, and local burst measurements](traffic-and-local-load.md)
+for the 2026-10-30 first/returning visit evidence, daily-player scenarios, quota
+boundary response, and limits of the isolated local exercise. Connected Vercel
+metadata now confirms Hobby; remaining shared usage and account settings still
+need owner verification before promotion.
+
 ## Activate checks and failure email
 
 **Check public daily release** runs at **00:17, 06:17, 12:17 and 18:17 UTC** once
@@ -108,7 +114,7 @@ Recorded **2026-10-30**; recheck before changing visibility, plan or cadence.
 | --- | --- |
 | Public URL | Anonymous implementation smoke check at 2026-10-30 14:02 UTC passed page/release HTTP 200, release `daily-v3-2026-10-30-0-1`, modes, boards and swap in 3.037 seconds; verify again after deployment. |
 | Repository | `srbying/tile` reported public during planning. Standard public-repo runners are free. |
-| Hosting account | Project/team/alias confirmed by connected metadata. Parent PRD #23 reported Hobby; current billing plan, eligibility, remaining quota and personal preferences were not exposed by returned metadata and remain unverified. |
+| Hosting account | Connected deployment context confirmed Hobby on 2026-10-30, with four linked Git projects sharing the team. Eligibility, remaining shared quota, billing/notification settings and personal preferences remain unverified; see the traffic report. |
 | Hobby runtime logs | Included, one-hour retention. Longer retention and Log Drains unavailable for free. |
 | Hobby Observability | Included with 12-hour retention and limited breakdowns; queries/notebooks and function p75/path analysis require Observability Plus. |
 | Runtime alerts/custom monitors | Pro/Enterprise with Observability Plus; unavailable in this free setup. GitHub provides the external check. |

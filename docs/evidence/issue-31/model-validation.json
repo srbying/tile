@@ -1,0 +1,10 @@
+{
+  "checks": [
+    "known 100-player returning scenario = 9600 CDN requests including monitor",
+    "30 daily-origin minimum enforced",
+    "10k players / 10% cold = 1110600 CDN requests",
+    "100% API misses = 300120 origins at 10k daily players",
+    "nearest-rank median/p99 and invalid-release rejection checked before local exercise"
+  ],
+  "passed": true
+}

@@ -1,0 +1,43 @@
+import { readFile,writeFile } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const dir='/private/tmp/tile31-capture';
+const browser=JSON.parse(await readFile(dir+'/browser.json','utf8'));
+const local=JSON.parse(await readFile(dir+'/local.json','utf8'));
+const rows=(await readFile(dir+'/local-requests.csv','utf8')).trim().split('\n').slice(1).map(line=>line.split(','));
+const warm=rows.filter(r=>r[0]==='warm');
+const sum=(xs,f)=>xs.reduce((s,x)=>s+f(x),0);
+const transfer=r=>r.encodedBodyBytes+r.requestHeadersBytesEstimate+r.responseHeadersBytesEstimate;
+function means(kind) {
+ const journeys=browser.filter(j=>j.kind===kind);
+ return {requests:sum(journeys,j=>sum(j.networkLog.filter(r=>r.network),r=>r.sent))/journeys.length,
+ transferBytes:sum(journeys,j=>sum(j.networkLog.filter(r=>r.network),transfer))/journeys.length,
+ compressedBodyBytes:sum(journeys,j=>sum(j.networkLog.filter(r=>r.network),r=>r.encodedBodyBytes))/journeys.length};
+}
+const cold=means('cold'),returning=means('returning');
+const monitor=browser[0].networkLog.filter(r=>r.network&&r.status===200&&!r.workerScript);
+assert.equal(monitor.length,5);assert.equal(cold.requests,10);assert.equal(returning.requests,3);
+const inputs={days:30,cold,returning,monitorRuns:120,monitorRequests:5,monitorTransferBytes:sum(monitor,transfer),warmCpuMs:local.warm.serverCpuMs/local.warm.completed,coldCpuMs:local.cold.serverCpuMs,warmWallMs:sum(warm,r=>Number(r[4]))/warm.length,coldWallMs:local.cold.latencyMs.p50,allocatedMemoryGb:2,originBytesPerInvocation:local.responseBytes+2048,minimumOriginInvocations:30,limits:{cdnRequests:1000000,fastDataBytes:100000000000,fastOriginBytes:10000000000,invocations:1000000,cpuHours:4,memoryGbHours:360}};
+const model=(players,coldShare,missShare)=>{
+ const visits=players*inputs.days,apiRequests=visits+inputs.monitorRuns;
+ const originInvocations=Math.max(inputs.minimumOriginInvocations,apiRequests*missShare);
+ const cdnRequests=visits*(coldShare*cold.requests+(1-coldShare)*returning.requests)+inputs.monitorRuns*inputs.monitorRequests;
+ const fastDataBytes=visits*(coldShare*cold.transferBytes+(1-coldShare)*returning.transferBytes)+inputs.monitorRuns*inputs.monitorTransferBytes;
+ const fastOriginBytes=originInvocations*inputs.originBytesPerInvocation;
+ const cpuWarmHours=originInvocations*inputs.warmCpuMs/3600000,cpuColdHours=originInvocations*inputs.coldCpuMs/3600000;
+ const memoryWarmGbHours=originInvocations*inputs.allocatedMemoryGb*inputs.warmWallMs/3600000,memoryColdGbHours=originInvocations*inputs.allocatedMemoryGb*inputs.coldWallMs/3600000;
+ const limiting=(cpuHours,memoryGbHours)=>Object.entries({cdnRequests:cdnRequests/inputs.limits.cdnRequests,fastDataBytes:fastDataBytes/inputs.limits.fastDataBytes,fastOriginBytes:fastOriginBytes/inputs.limits.fastOriginBytes,invocations:originInvocations/inputs.limits.invocations,cpuHours:cpuHours/inputs.limits.cpuHours,memoryGbHours:memoryGbHours/inputs.limits.memoryGbHours}).sort((a,b)=>b[1]-a[1])[0][0];
+ return {dailyPlayers:players,coldShare,missShare,visits,cdnRequests,fastDataBytes,apiRequests,originInvocations,fastOriginBytes,cpuWarmHours,cpuColdHours,memoryWarmGbHours,memoryColdGbHours,limitingWarm:limiting(cpuWarmHours,memoryWarmGbHours),limitingCold:limiting(cpuColdHours,memoryColdGbHours)};
+};
+assert.equal(model(100,0,.001).cdnRequests,9600);
+assert.equal(model(100,0,.001).originInvocations,30);
+assert.equal(model(10000,.1,1).cdnRequests,1110600);
+assert.equal(model(10000,.1,1).originInvocations,300120);
+const monthly=[];for(const players of [100,1000,10000])for(const c of [0,.1,1])for(const m of [.001,.01,1])monthly.push(model(players,c,m));
+const peaks=[];for(const players of [100,1000,10000])for(const fraction of [.1,1])for(const c of [0,.1,1]){const visitsPerSecond=players*fraction/60;peaks.push({dailyPlayers:players,arrivalFraction:fraction,coldShare:c,windowSeconds:60,visitsPerSecond,cdnRps:visitsPerSecond*(c*cold.requests+(1-c)*returning.requests),apiRps:visitsPerSecond,originRpsAtPointOnePercentMiss:visitsPerSecond*.001,originRpsAtOnePercentMiss:visitsPerSecond*.01,originRpsAtAllMiss:visitsPerSecond});}
+const csv=values=>{const cols=Object.keys(values[0]);return cols.join(',')+'\n'+values.map(v=>cols.map(c=>v[c]).join(',')).join('\n')+'\n';};
+await writeFile(dir+'/model-inputs.json',JSON.stringify(inputs,null,2)+'\n');
+await writeFile(dir+'/monthly-scenarios.csv',csv(monthly));await writeFile(dir+'/peak-scenarios.csv',csv(peaks));
+await writeFile(dir+'/model-validation.json',JSON.stringify({checks:['known 100-player returning scenario = 9600 CDN requests including monitor','30 daily-origin minimum enforced','10k players / 10% cold = 1110600 CDN requests','100% API misses = 300120 origins at 10k daily players','nearest-rank median/p99 and invalid-release rejection checked before local exercise'],passed:true},null,2)+'\n');
+console.log(JSON.stringify(inputs,null,2));
+console.log('MONTHLY EDGES');for(const r of monthly.filter(r=>r.missShare===.01))console.log(`${r.dailyPlayers}|${r.coldShare}|${r.cdnRequests}|${(r.fastDataBytes/1e9).toFixed(4)}`);
+console.log('ORIGIN');for(const r of monthly.filter(r=>r.coldShare===0))console.log(`${r.dailyPlayers}|${r.missShare}|${r.originInvocations}|${(r.fastOriginBytes/1e9).toFixed(4)}|${r.cpuWarmHours.toFixed(4)}–${r.cpuColdHours.toFixed(4)}|${r.memoryWarmGbHours.toFixed(4)}–${r.memoryColdGbHours.toFixed(4)}`);
