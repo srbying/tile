@@ -61,6 +61,8 @@ Connect the repository to Vercel with the root as the project root. Vercel build
 
 Issue #7’s proposed human-approval gate was intentionally dropped. The daily API does not check an approval status.
 
+Puzzle API aliases redirect to canonical URLs before generation. See [request protection and the free firewall rollout](docs/puzzle-request-protection.md) for shared-network assumptions, owner-run observation and enforcement, and rollback. This change leaves dashboard configuration and publication to the owner.
+
 ## Verification scope
 
 Unit tests cover immutable transitions, swap accounting, visual equivalence, progress validation and restore, exact visible swap counts, candidate validation, target symmetry, deterministic generation, New York date boundaries, saved-ID lookup, hint feedback, and mode budgets. Browser tests cover offline authoring import/edit/export, three-tier previews, generated-puzzle gameplay, resume by saved puzzle ID, keyboard and touch play, announcements, focus, and reload behavior.

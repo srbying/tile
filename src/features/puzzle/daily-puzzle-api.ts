@@ -15,7 +15,14 @@ function methodNotAllowed(): Response {
   return Response.json({ error: 'Method not allowed.' }, { status: 405, headers: { ...noStoreHeaders, Allow: 'GET' } });
 }
 
+function canonicalRedirect(request: Request, path: string): Response | null {
+  if (request.url === new URL(path, request.url).href) return null;
+  return new Response(null, { status: 308, headers: { ...noStoreHeaders, Location: path } });
+}
+
 export function decodePuzzleId(encodedPuzzleId: string): string {
+  // Supported IDs contain at most 24 ASCII characters, each optionally %HH encoded.
+  if (encodedPuzzleId.length > 72) return '';
   try {
     return decodeURIComponent(encodedPuzzleId);
   } catch {
@@ -31,6 +38,8 @@ export function createDailyPuzzleApi(dependencies: DailyPuzzleApiDependencies = 
   return {
     async today(request: Request): Promise<Response> {
       if (request.method !== 'GET') return methodNotAllowed();
+      const redirect = canonicalRedirect(request, '/api/puzzles/today');
+      if (redirect) return redirect;
       try {
         // A cold generation can straddle midnight. Retry once for the new date.
         for (let attempt = 0; attempt < 2; attempt++) {
@@ -66,6 +75,8 @@ export function createDailyPuzzleApi(dependencies: DailyPuzzleApiDependencies = 
       if (!identity || identity.releaseDate > getNewYorkPuzzleDate(now())) {
         return Response.json({ error: 'Puzzle not found.' }, { status: 404, headers: noStoreHeaders });
       }
+      const redirect = canonicalRedirect(request, `/api/puzzles/${puzzleId}`);
+      if (redirect) return redirect;
       try {
         const provided = getById(puzzleId);
         if (!provided) {
