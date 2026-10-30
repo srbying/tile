@@ -267,8 +267,8 @@ or resources were enabled or purchased.
 
 ## Evidence, reproduction, and acceptance
 
-[Evidence index and exact one-off procedure](evidence/issue-31/README.md) includes
-the historical source of collection and calculation commands. These inert
+[Evidence index and one-off procedure](evidence/issue-31/README.md) includes
+collection and calculation source with the review fixes noted there. These inert
 snapshots are not a maintained benchmark harness, npm command, or CI job.
 No production code, public API, dependency, or game behavior changed.
 

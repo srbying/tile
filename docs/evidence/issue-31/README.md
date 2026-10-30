@@ -14,7 +14,12 @@ not a maintained performance-test suite. Application source is unchanged.
 | `monthly-scenarios.csv` | All 27 player/cold-share/miss-share combinations; warm/fresh compute proxies and largest allowance fractions |
 | `peak-scenarios.csv` | All 18 player/arrival-share/cold-share combinations; CDN/API and origin request rates |
 | `model-validation.json` | Literal arithmetic and request-validation checks |
-| `*.mjs.txt` | Exact one-off collection/control/calculation source archived as inert text; not integrated into npm or CI |
+| `*.mjs.txt` | One-off collection/control/calculation source with the review fixes below; inert text, not integrated into npm or CI |
+
+Post-measurement review added exit/error/deadline handling for preview readiness
+and snapshots, plus guards requiring successful warm requests and positive
+transfer totals before model output. The reproduction source includes those
+fixes; the measured JSON/CSV evidence and scenario values are unchanged.
 
 ## Counting and formulas
 

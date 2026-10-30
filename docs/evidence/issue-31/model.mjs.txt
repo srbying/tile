@@ -16,6 +16,7 @@ function means(kind) {
 const cold=means('cold'),returning=means('returning');
 const monitor=browser[0].networkLog.filter(r=>r.network&&r.status===200&&!r.workerScript);
 assert.equal(monitor.length,5);assert.equal(cold.requests,10);assert.equal(returning.requests,3);
+assert.equal(local.warm.completed,local.warm.attempted,'All warm requests must succeed before deriving model inputs.');
 const inputs={days:30,cold,returning,monitorRuns:120,monitorRequests:5,monitorTransferBytes:sum(monitor,transfer),warmCpuMs:local.warm.serverCpuMs/local.warm.completed,coldCpuMs:local.cold.serverCpuMs,warmWallMs:sum(warm,r=>Number(r[4]))/warm.length,coldWallMs:local.cold.latencyMs.p50,allocatedMemoryGb:2,originBytesPerInvocation:local.responseBytes+2048,minimumOriginInvocations:30,limits:{cdnRequests:1000000,fastDataBytes:100000000000,fastOriginBytes:10000000000,invocations:1000000,cpuHours:4,memoryGbHours:360}};
 const model=(players,coldShare,missShare)=>{
  const visits=players*inputs.days,apiRequests=visits+inputs.monitorRuns;
@@ -29,6 +30,7 @@ const model=(players,coldShare,missShare)=>{
  return {dailyPlayers:players,coldShare,missShare,visits,cdnRequests,fastDataBytes,apiRequests,originInvocations,fastOriginBytes,cpuWarmHours,cpuColdHours,memoryWarmGbHours,memoryColdGbHours,limitingWarm:limiting(cpuWarmHours,memoryWarmGbHours),limitingCold:limiting(cpuColdHours,memoryColdGbHours)};
 };
 assert.equal(model(100,0,.001).cdnRequests,9600);
+assert.ok(model(100,0,.001).fastDataBytes>0,'Fast Data Transfer must be positive.');
 assert.equal(model(100,0,.001).originInvocations,30);
 assert.equal(model(10000,.1,1).cdnRequests,1110600);
 assert.equal(model(10000,.1,1).originInvocations,300120);
